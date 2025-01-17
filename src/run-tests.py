@@ -1,10 +1,6 @@
 import subprocess
 import os
-import xml.etree.ElementTree as ET
-import json
-from datetime import datetime
 from pathlib import Path
-from typing import List, Union
 import logging
 
 class JUnitTestRunner:
@@ -75,7 +71,7 @@ class JUnitTestRunner:
         if result.returncode != 0:
             raise Exception(f"Compilation failed:\n{result.stderr}")
             
-    def run_tests(self):
+    def run_test_runner(self):
         """Run JUnit tests and return results"""
         # Find all test classes
         test_classes = []
@@ -96,41 +92,10 @@ class JUnitTestRunner:
         
         subprocess.run(cmd, capture_output=True, text=True)
 
-    def save_results(self, results):
-        """Save test results to JSON and generate JUnit XML report"""
-        # Save JSON results
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_file = self.results_dir / f"test_results_{timestamp}.json"
-        with open(json_file, 'w') as f:
-            json.dump(results, f, indent=2)
-            
-        # Generate JUnit XML report
-        xml_file = self.results_dir / f"TEST-results_{timestamp}.xml"
-        root = ET.Element("testsuites")
-        
-        for result in results:
-            testsuite = ET.SubElement(root, "testsuite")
-            testsuite.set("name", result["class"])
-            testsuite.set("timestamp", result["timestamp"])
-            
-            # Parse the output to get individual test results
-            for line in result["output"].split('\n'):
-                if line.startswith("Test"):
-                    testcase = ET.SubElement(testsuite, "testcase")
-                    testcase.set("name", line.split()[1])
-                    if "FAILED" in line:
-                        failure = ET.SubElement(testcase, "failure")
-                        failure.text = line
-            
-        tree = ET.ElementTree(root)
-        tree.write(xml_file, encoding='utf-8', xml_declaration=True)
-        
-        return str(json_file), str(xml_file)
-
 if __name__ == "__main__":
     runner = JUnitTestRunner(
-        src_dir="./mutant-runner/src/main",
-        test_dir="./mutant-runner/src/test",
+        src_dir="./dev-junit-runner/src/main",
+        test_dir="./dev-junit-runner/src/test",
         jar_files_dir="./lib",
     )
 
@@ -139,8 +104,7 @@ if __name__ == "__main__":
     try:
         runner.prepare_directories()
         runner.compile_code()
-        runner.run_tests()
-        # json_file, xml_file = runner.save_results(results)
-        # print(f"Results saved to:\nJSON: {json_file}\nXML: {xml_file}")
+        runner.run_test_runner()
+
     except Exception as e:
         print(f"Error: {e}")
