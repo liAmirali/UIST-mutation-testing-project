@@ -201,16 +201,16 @@
     "name": "OMR",
     "full_name": "Overloading method contents replace",
     "category": "Polymorphism",
-    "preconditions": "The source code contains methods with the same name but different implementations.",
-    "description": "For each pair of methods that have the same name, the bodies are interchanged.",
-    "example": "If `set(int x, int y)` and `set(int x, int y, int z)` have distinct bodies, change the body of one method to the body of the other method.",
+    "preconditions": "The source code contains methods with the same name and same parameters type but different implementations.",
+    "description":"The OMR operator is designed to check that overloaded methods are invoked appropriately. The OMR operator replaces the body of a method with the body of another method that has the same name. This is accomplished by using the keyword this.The body of the function that has all of the other function's parameters with same type in all posible permutations should be changed.",
+    "example": "If `set(int x, int y)` and `set(int x, int y, int z)` and `set(int x, int y, int z, int v)` change `set(int x,int y, int z)` and `set(int x,int y, int z, int v)` body to the other `set(int x, int y)` body and also `set(int x,int y, int z, int v)` body to `set(int x,int y, int z)` body by using this keyword",
     "use_case": "A tester uses this to check if different overloaded methods are actually doing what they're expected to do and that the code is not unintentionally calling the different implementation."
   },
   {
     "name": "OMD",
     "full_name": "Overloading method deletion",
     "category": "Polymorphism",
-    "preconditions": "The source code contains overloaded method declarations.",
+    "preconditions": "The source code contains overloaded method declarations , they have same names with different bodies.",
     "description": "Each overloaded method declaration is deleted, one at a time.",
     "example": "If `void print(String s)` and `void print(int i)` exist, delete one such as `void print(int i)`.",
     "use_case": "Testers use this operator to verify that the code still works with the existing overloaded methods. This also helps to see the impact of having only some of the overloaded versions of a method."
@@ -220,8 +220,8 @@
     "full_name": "Arguments of overloading method call change",
     "category": "Polymorphism",
     "preconditions": "The source code contains overloaded methods with arguments in different orders.",
-    "description": "The order of the arguments in method invocations is changed to be the same as that of another overloading method, if one exists.",
-    "example": "If we assume that we have `set(int x, int y)` and `set(int x, int y, int z)`, change `set(1, 2)` to `set(1, 2, 3)`.",
+    "description": "The OAC operator changes the order or the number of the arguments in method invocations, but only if there is an overloading method that can accept the new argument list. If there is one, the OAC operator causes a different method to be called, thus checking for a common fault in the use of overloading.",
+    "example": "If we assume that we have `set(int x, int y)` and `set(int x, int y, int z)`, change `set(1, 2)` to `set(1, 2, 3)` Only when these functions are called somewhere in the code.",
     "use_case": "Testers use this operator to verify that the overloading method calls are correct when the number of parameters are changed. This also helps in verifying the method signature."
   }
 ]
