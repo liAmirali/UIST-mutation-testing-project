@@ -11,7 +11,7 @@ from src.output_classes import Mutation, MutationLocation, MutationResult
 from src.vars import GOOGLE_API_KEY
 
 class MutationAssistant:
-    def __init__(self, google_api_key: str, vector_store):
+    def __init__(self, vector_store):
         """Initialize the mutation assistant with necessary components."""
 
         # Initialize logging
@@ -20,7 +20,7 @@ class MutationAssistant:
         # Initialize Gemini LLM
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-2.0-flash-exp",
-            google_api_key=google_api_key,
+            google_api_key=GOOGLE_API_KEY,
             temperature=0.3
         )
 
