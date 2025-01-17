@@ -1,4 +1,5 @@
 import os
+import shutil
 from pydantic import BaseModel, Field
 from typing import List
 
@@ -26,28 +27,39 @@ class MutationResult(BaseModel):
     applied_operators: List[str] = Field(..., description="List of mutation operators that were applied")
 
 
-def replace_mutated_files(folder_path: str, mutation_result: MutationResult):
+def replace_mutated_files(original_folder: str, mutation_result: MutationResult):
     """
     Replace the content of Java classes affected by mutations with their mutated code.
 
     Args:
-        folder_path (str): Path to the folder containing Java classes.
+        original_folder (str): Path to the original folder containing Java classes.
         mutation_result (MutationResult): Object containing mutations and their details.
     """
     for mutation in mutation_result.mutations:
-        # Extract the class name from the mutation explanation or the mutated code
-        class_name = get_class_name_from_code(mutation.mutated_code)
-        
-        # Construct the file path
-        file_path = find_java_file(folder_path, class_name)
-        
+        # Create a copy of the original folder for this mutation
+        temp_folder = f"{original_folder}_temp"
+        if os.path.exists(temp_folder):
+            shutil.rmtree(temp_folder)
+        shutil.copytree(original_folder, temp_folder)
+
+        # Make sure this is the path in the original folder
+        file_path = "F1/Test.java"
         if file_path:
             # Replace the content of the file with the mutated code
             with open(file_path, 'w', encoding='utf-8') as java_file:
                 java_file.write(mutation.mutated_code)
-            print(f"Replaced content in: {file_path}")
+            print(f"Applied mutation {mutation.id} to {file_path}")
         else:
-            print(f"Class {class_name} not found in folder: {folder_path}")
+            print(f"Class {file_path} not found: {original_folder}")
+
+        # Process the temporary folder (e.g., run tests here if needed)
+        # ...
+
+
+        shutil.move(temp_folder, original_folder)
+
+        # Clean up the temporary folder after processing
+        shutil.rmtree(temp_folder)
 
 
 def get_class_name_from_code(code: str) -> str:
@@ -87,7 +99,7 @@ def find_java_file(folder_path: str, class_name: str) -> str:
 
 # Example usage
 if __name__ == "__main__":
-    folder_path = "path/to/java/classes/folder"  # Replace with the path to your folder
+    original_folder = "path/to/java/classes/folder"  # Replace with the path to your original folder
     mutation_data = {
         "total_mutations": 2,
         "mutations": [
@@ -110,4 +122,4 @@ if __name__ == "__main__":
     }
 
     mutation_result = MutationResult(**mutation_data)
-    replace_mutated_files(folder_path, mutation_result)
+    replace_mutated_files(original_folder, mutation_result)
