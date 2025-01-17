@@ -14,6 +14,7 @@ class Mutation(BaseModel):
     """Represents a single mutation in the code"""
     id: str = Field(..., description="Unique identifier for the mutation (e.g., M1, M2)")
     operator: str = Field(..., description="Name of the mutation operator applied")
+    path: str = Field(..., description="Path to the file where the mutation was applied")
     mutated_code: str = Field(..., description="Modified code after applying the mutation")
     location: MutationLocation = Field(..., description="Location of the mutation in the source code")
     explanation: str = Field(..., description="Explanation of why and how the code was mutated")
