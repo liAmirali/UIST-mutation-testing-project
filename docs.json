@@ -1,0 +1,227 @@
+[
+  {
+    "name": "IHI",
+    "full_name": "Hiding Variable Insertion",
+    "category": "Inheritance",
+    "preconditions": "The source code has variables in a parent class, one or more of which do not exist in a subclass of this class.",
+    "description": "Add a declaration in the  subclass to hide the declaration of each variable declared in an ancestor. the access modifier of that variable should be exactly the same.",
+    "example": "If the parent class has `int x`, add `int x` in the child class to hide the parent’s variable.",
+    "use_case": "A tester would use this operator to check if the child class is correctly using its own version of the variable instead of accidentally accessing the parent's variable when they have the same name. This helps to understand the scope and name resolution for member variables."
+  },
+  {
+    "name": "IHD",
+    "full_name": "Hiding Variable Deletion",
+    "category": "Inheritance",
+    "preconditions": "In the source code child class contains hiding variable declarations.",
+    "description": "Delete each declaration of hiding variable in the child class.",
+    "example": "If the child class overrides variable `int x` from the parent class, delete the declaration in the child class.",
+    "use_case": "A tester would use this operator to check if the child class correctly falls back to the parent's version of the variable when the child's version is removed. This verifies that inheritance mechanisms are functioning properly for member variables."
+  },
+  {
+    "name": "IOD",
+    "full_name": "Overriding Method Deletion",
+    "category": "Inheritance",
+    "preconditions": "A method in a subclass overrides a method in its parent class.",
+    "description": "Delete the entire declaration of each overriding method.",
+    "example": "If `Child.method()` overrides `Parent.method()`, delete the entire `Child.method()` declaration.",
+    "use_case": "A tester would use this operator to ensure the program behaves as expected when the overriding method is not present in the child class, and the parent's version of the method is used. This verifies the basic mechanism of inheritance."
+  },
+  {
+    "name": "IOP",
+    "full_name": "Overridden Method Calling Position Change",
+    "category": "Inheritance",
+    "preconditions": "A subclass method calls an overridden method from its parent class.",
+    "description": "Move the call to the overridden method to the first and last statements of the method, and up and down one statement.",
+    "example": "If `super.method()` is in the middle of a method, move it to the start or end, or adjust its position by one statement. if its already in the start move it to the end. if its already in the end move it to the start.",
+    "use_case": "A tester uses this operator to identify if the order of calls to the parent method is critical for the overall functionality. By changing the position, they can test edge cases in initialization or finalization logic of a method that utilizes polymorphism and the `super` keyword."
+  },
+  {
+    "name": "IOR",
+    "full_name": "Overridden Method Rename",
+    "category": "Inheritance",
+    "preconditions": "A subclass overrides methods from its parent class.",
+    "description": "change the name of the parents method that a child overrited it.",
+    "example": "If `Parent.method()` is overridden by `Child.method()`, rename `Parent.method()` to `Parent.renamedMethod()`.",
+    "use_case": "Testers use this operator to determine if the program is correctly using the overridden method in the subclass and also tests the impact of renaming the overridden method to avoid unexpected behaviours."
+  },
+  {
+    "name": "ISI",
+    "full_name": "Super Keyword Insertion",
+    "category": "Inheritance",
+    "preconditions": "The source code has overriding variables or methods defined in an ancestor class.",
+    "description": "Insert the `super` keyword before overriding variables or methods if the name is also defined in an ancestor class.",
+    "example": "Replace `method()` with `super.method()` or `variable` with `super.variable`.",
+    "use_case": "Testers would use this operator to verify that the correct version of the variable or method in the parent class is called when intended. This helps ensure that `super` is used appropriately to access parent class members when they are hidden by subclass members of the same name, explicitly calling the parent logic."
+  },
+  {
+    "name": "ISD",
+    "full_name": "Super Keyword Deletion",
+    "category": "Inheritance",
+    "preconditions": "The source code contains occurrences of the `super` keyword.",
+    "description": "Delete each occurrence of the `super` keyword.",
+    "example": "If a method contains `super.method()`, remove `super` and use `method()` directly.",
+    "use_case": "A tester would use this operator to see what happens when `super` is not used and the child tries to access the local version of the variable or method which might result in infinite loops if the method calls itself in the local class."
+  },
+  {
+    "name": "IPC",
+    "full_name": "Explicit Parent Constructor Deletion",
+    "category": "Inheritance",
+    "preconditions": "The source code contains explicit calls to a superclass constructor.",
+    "description": "Delete each call to a `super` constructor.",
+    "example": "If a constructor contains `super(x)`, delete the `super` call.",
+    "use_case": "Testers use this operator to check whether the initialization logic in the superclass is essential for the child class to function correctly. Removing the call to super might lead to the child class being uninitialized or only partially initialized."
+  },
+  {
+    "name": "JTI",
+    "full_name": "this Keyword Insertion",
+    "category": "Java-Specific",
+    "preconditions": "The source code allows for the `this` keyword to be used in instance methods or constructors.",
+    "description": "Insert the `this` keyword wherever possible.",
+    "example": "Replace `x = value` with `this.x = value`.",
+    "use_case": "A tester uses this operator to specifically test the effect of explicit access using the `this` keyword and also to differentiate class level variables from method level variables. Using `this` can help in understanding the code flow and dependencies."
+  },
+  {
+    "name": "JTD",
+    "full_name": "this Keyword Deletion",
+    "category": "Java-Specific",
+    "preconditions": "The source code uses the `this` keyword in instance methods or constructors.",
+    "description": "Delete the `this` keyword wherever it is used.",
+    "example": "Replace `this.x = value` with `x = value`.",
+    "use_case": "A tester would use this operator to verify if the code is still correct when not explicitly using `this`. If the `this` keyword is not needed, it helps to reduce the overall code verbosity without impacting functionality."
+  },
+  {
+    "name": "JSI",
+    "full_name": "Static Modifier Insertion",
+    "category": "Java-Specific",
+    "preconditions": "The source code contains instance variables that can be modified.",
+    "description": "Add the `static` modifier to instance variables.",
+    "example": "Change `int x` to `static int x`.",
+    "use_case": "A tester would use this to see if making a member variable static causes any issues for instances of the class. This tests if all instances are sharing the same variable as it is a static variable."
+  },
+  {
+    "name": "JSD",
+    "full_name": "Static Modifier Deletion",
+    "category": "Java-Specific",
+    "preconditions": "The source code contains static variables or methods.",
+    "description": "Remove the `static` modifier from variables or methods.",
+    "example": "Change `static int x` to `int x`.",
+    "use_case": "Testers use this operator to check the behavior when a variable or method is no longer static. This operator can reveal unintended sharing or dependencies between instances that may rely on a static access."
+  },
+  {
+    "name": "JID",
+    "full_name": "Member Variable Initialization Deletion",
+    "category": "Java-Specific",
+    "preconditions": "The source code initializes member variables.",
+    "description": "Remove the initialization of each member variable.",
+    "example": "Change `int x = 5` to `int x;`.",
+    "use_case": "A tester would use this to verify the effects of not initializing member variables with explicit values. This test checks the default values and the initialization process within the code."
+  },
+  {
+    "name": "JDC",
+    "full_name": "Java-supported Default Constructor Deletion",
+    "category": "Java-Specific",
+    "preconditions": "The source code contains default constructors (with no parameters).",
+    "description": "Delete each declaration of a default constructor.",
+    "example": "If `public ClassName() {}` exists, delete the constructor entirely.",
+    "use_case": "A tester can use this to test how the program reacts when an explicit default constructor is not provided. They want to make sure that the default implicit constructor is being called and the program still behaves as expected."
+  },
+  {
+    "name": "AMC",
+    "full_name": "Access modifier change",
+    "category": "Encapsulation",
+    "preconditions": "The source code contains instance variables and methods with defined access levels (e.g., public, private, protected or default).",
+    "description": "The access level for each instance variable and method is changed to other access levels. Access levels should change randomly each time.",
+    "example": "Change `private int x;` to `public int x;` or change `protected void methodName()` to `private void methodName()` or change `int x;` to `private int x;`.  Change access levels randomly.",
+    "use_case": "Testers use this to verify that encapsulation is enforced correctly. By changing access modifiers, they can try to access members that should be private or protected to check if proper restrictions are being enforced."
+  },
+  {
+    "name": "PNC",
+    "full_name": "New method call with child class type",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains object instantiations using the `new` keyword with a specific type.",
+    "description": "The actual type of a new object is changed in the `new()` statement.",
+    "example": "Change `Animal a = new Animal();` to `Animal a = new Cat();`.",
+    "use_case": "Testers use this operator to test whether the program behaves as expected when the actual object instantiated is a child class of the declared type. This will help in detecting polymorphic behaviors and inheritance."
+  },
+  {
+    "name": "PMD",
+    "full_name": "Member variable declaration with parent class type",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains declared types for objects created with the `new` keyword.",
+    "description": "The declared type of each new object is changed in the declaration.",
+    "example": "Change `Animal a = new Dog();` to `Dog d = new Dog();`.",
+    "use_case": "Testers use this operator to verify that when a member variable is of the child type, it will no longer behave polymorphically and it checks the consequences of not declaring a parent class."
+  },
+  {
+    "name": "PPD",
+    "full_name": "Parameter variable declaration with child class type",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains methods with parameters declared as objects.",
+    "description": "The declared type of each parameter object is changed in the declaration.",
+    "example": "Change `void feed(Animal a)` to `void feed(Dog d)`.",
+    "use_case": "Testers would use this operator to check how the method will behave when the parameter is of a specific child type instead of parent type. This helps identify scenarios where methods might not correctly handle a range of objects within the hierarchy."
+  },
+  {
+    "name": "PCI",
+    "full_name": "Type cast operator insertion",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains object references with a declared type.",
+    "description": "The actual type of an object reference is changed to the parent or to the child of the original declared type.",
+    "example": "If Dog as d extends Animal, Change `String name = d.getName();` to `String name = (Animal)d.getDog();`.",
+    "use_case": "Testers use this operator to verify that the type casting is done correctly. By casting to an incorrect type, the testers check whether exceptions occur or if incorrect behaviors are triggered."
+  },
+  {
+    "name": "PCD",
+    "full_name": "Type cast operator deletion",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains type casting operators.",
+    "description": "Type casting operators are deleted.",
+    "example": "Change `(Dog) animal` to simply `animal`, Don't forget to remove the parentheses completely.",
+    "use_case": "A tester would use this operator to check how the code will react when a type cast is omitted. By deleting the casts, they can test situations where implicit casting might be required."
+  },
+  {
+    "name": "PPC",
+    "full_name": "Cast type change",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains type casting operators.",
+    "description": "Changes the type to which an object reference is being cast.",
+    "example": "Change `(Dog) animal` to `(Cat) animal`.",
+    "use_case": "A tester would use this operator to see how the program behaves with an incorrect type cast, this specifically helps to identify exception cases."
+  },
+  {
+    "name": "PRV",
+    "full_name": "Reference assignment with other compatible type",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains assignment statements with compatible object types.",
+    "description": "The right-side objects of assignment statements are changed to refer to objects of a compatible type.",
+    "example": "If we assume that we have Dog d and Cat c, change `Animal a = d;` to `Animal a = c;`.",
+    "use_case": "Testers use this operator to ensure the code correctly handles polymorphic assignments and to check if the actual type of the object on the right side does not break the code."
+  },
+  {
+    "name": "OMR",
+    "full_name": "Overloading method contents replace",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains methods with the same name but different implementations.",
+    "description": "For each pair of methods that have the same name, the bodies are interchanged.",
+    "example": "If `set(int x, int y)` and `set(int x, int y, int z)` have distinct bodies, change the body of one method to the body of the other method.",
+    "use_case": "A tester uses this to check if different overloaded methods are actually doing what they're expected to do and that the code is not unintentionally calling the different implementation."
+  },
+  {
+    "name": "OMD",
+    "full_name": "Overloading method deletion",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains overloaded method declarations.",
+    "description": "Each overloaded method declaration is deleted, one at a time.",
+    "example": "If `void print(String s)` and `void print(int i)` exist, delete one such as `void print(int i)`.",
+    "use_case": "Testers use this operator to verify that the code still works with the existing overloaded methods. This also helps to see the impact of having only some of the overloaded versions of a method."
+  },
+  {
+    "name": "OAC",
+    "full_name": "Arguments of overloading method call change",
+    "category": "Polymorphism",
+    "preconditions": "The source code contains overloaded methods with arguments in different orders.",
+    "description": "The order of the arguments in method invocations is changed to be the same as that of another overloading method, if one exists.",
+    "example": "If we assume that we have `set(int x, int y)` and `set(int x, int y, int z)`, change `set(1, 2)` to `set(1, 2, 3)`.",
+    "use_case": "Testers use this operator to verify that the overloading method calls are correct when the number of parameters are changed. This also helps in verifying the method signature."
+  }
+]
