@@ -1,105 +1,129 @@
 import os
 import shutil
-from pydantic import BaseModel, Field
-from typing import List
+from pathlib import Path
 
+from src.output_classes import MutationResult, Mutation
 
-class MutationLocation(BaseModel):
-    """Represents the location of a mutation in the source code"""
-    line_number: int
-    start_column: int
-    end_column: int
+class MutantTester:
+    def __init__(self, original_dir: str, mutation_result: MutationResult):
+        """
+        Initialize the JavaMutationHandler.
 
+        Args:
+            original_dir (str): Path to the original directory containing Java classes.
+            mutation_result (MutationResult): Object containing mutations and their details.
+        """
+        self.original_dir = original_dir
+        self.mutation_dir = original_dir + "_mutated"
+        self.mutation_result = mutation_result
 
-class Mutation(BaseModel):
-    """Represents a single mutation in the code"""
-    id: str = Field(..., description="Unique identifier for the mutation (e.g., M1, M2)")
-    operator: str = Field(..., description="Name of the mutation operator applied")
-    mutated_code: str = Field(..., description="Modified code after applying the mutation")
-    location: MutationLocation = Field(..., description="Location of the mutation in the source code")
-    explanation: str = Field(..., description="Explanation of why and how the code was mutated")
+    def apply_and_test_mutations(self) -> None:
+        """
+        Apply mutations to Java files and manage the mutation process.
 
+        Args:
+            mutation_result (MutationResult): Object containing mutations and their details.
+        """
 
-class MutationResult(BaseModel):
-    """Represents the complete mutation testing result"""
-    total_mutations: int = Field(..., description="Total number of mutations generated")
-    mutations: List[Mutation] = Field(..., description="List of all generated mutations")
-    applied_operators: List[str] = Field(..., description="List of mutation operators that were applied")
+        self._init_mutation_dir()
 
+        for mutation in self.mutation_result.mutations:
+            try:
+                self._apply_single_mutation(mutation)
+                # Compile and test the mutated code
+                self._test_mutated_source()
+            finally:
+                self._revert_mutant_file()
 
-def replace_mutated_files(original_folder: str, mutation_result: MutationResult):
-    """
-    Replace the content of Java classes affected by mutations with their mutated code.
+    def _init_mutation_dir(self) -> str:
+        """
+        Create a temporary directory with copied contents from original directory.
 
-    Args:
-        original_folder (str): Path to the original folder containing Java classes.
-        mutation_result (MutationResult): Object containing mutations and their details.
-    """
-    for mutation in mutation_result.mutations:
-        # Create a copy of the original folder for this mutation
-        temp_folder = f"{original_folder}_temp"
-        if os.path.exists(temp_folder):
-            shutil.rmtree(temp_folder)
-        shutil.copytree(original_folder, temp_folder)
+        Returns:
+            str: Path to the temporary directory.
+        """
 
+        # Remove the existing mutation directory if it exists
+        if os.path.exists(self.mutation_dir):
+            shutil.rmtree(self.mutation_dir)
+
+        # Initialize the mutation directory with the original source code
+        shutil.copytree(self.original_dir, self.mutation_dir)
+
+    def _apply_single_mutation(self, mutation: Mutation) -> None:
+        """
+        Apply a single mutation to the appropriate Java file.
+
+        Args:
+            mutation: Single mutation object containing mutation details.
+        """
         # Make sure this is the path in the original folder
-        file_path = "F1/Test.java"
+        file_path = mutation.path
         if file_path:
-            # Replace the content of the file with the mutated code
             with open(file_path, 'w', encoding='utf-8') as java_file:
                 java_file.write(mutation.mutated_code)
-            print(f"Applied mutation {mutation.id} to {file_path}")
         else:
-            print(f"Class {file_path} not found: {original_folder}")
+            print(f"Class {file_path} not found in: {self.original_dir}")
 
-        # Process the temporary folder (e.g., run tests here if needed)
-        # ...
+    def _revert_mutant_file(self, mutation: Mutation) -> None:
+        """
+        Revert the mutated Java file back to its original state.
+        """
+        file_path = mutation.path
+        if file_path:
+            
+            # Copy the original file back to the mutation directory
+            original_file_path = os.path.join(self.original_dir, file_path)
+            mutated_file_path = os.path.join(self.mutation_dir, file_path)
+
+            shutil.copyfile(original_file_path, mutated_file_path)
+
+    def _test_mutated_source(self) -> None:
+        """
+        Compile and test the mutated Java source code.
+
+        Args:
+            mutated_source (str): Mutated Java source code.
+        """
+        pass
+
+    @staticmethod
+    def get_class_name_from_code(code: str) -> str:
+        """
+        Extract the class name from the Java code.
+
+        Args:
+            code (str): Java code.
+
+        Returns:
+            str: Class name if found, None otherwise.
+        """
+        for line in code.splitlines():
+            line = line.strip()
+            if line.startswith("public class ") or line.startswith("class "):
+                return line.split()[2].strip("{")
+        return None
+
+    def find_java_file(self, class_name: str) -> str:
+        """
+        Find the file path of a Java class in the folder.
+
+        Args:
+            class_name (str): Name of the class to find.
+
+        Returns:
+            str: Path to the Java file if found, None otherwise.
+        """
+        for root, _, files in os.walk(self.original_dir):
+            for file in files:
+                if file == f"{class_name}.java":
+                    return os.path.join(root, file)
+        return None
 
 
-        shutil.move(temp_folder, original_folder)
-
-        # Clean up the temporary folder after processing
-        shutil.rmtree(temp_folder)
-
-
-def get_class_name_from_code(code: str) -> str:
-    """
-    Extract the class name from the Java code.
-
-    Args:
-        code (str): Java code.
-
-    Returns:
-        str: Class name.
-    """
-    for line in code.splitlines():
-        line = line.strip()
-        if line.startswith("public class ") or line.startswith("class "):
-            return line.split()[2].strip("{")
-    return None
-
-
-def find_java_file(folder_path: str, class_name: str) -> str:
-    """
-    Find the file path of a Java class in the folder.
-
-    Args:
-        folder_path (str): Path to the folder containing Java classes.
-        class_name (str): Name of the class to find.
-
-    Returns:
-        str: Path to the Java file if found, otherwise None.
-    """
-    for root, _, files in os.walk(folder_path):
-        for file in files:
-            if file == f"{class_name}.java":
-                return os.path.join(root, file)
-    return None
-
-
-# Example usage
-if __name__ == "__main__":
-    original_folder = "path/to/java/classes/folder"  # Replace with the path to your original folder
+def main():
+    """Example usage of the JavaMutationHandler class."""
+    original_folder = "path/to/java/classes/folder"
     mutation_data = {
         "total_mutations": 2,
         "mutations": [
@@ -121,5 +145,10 @@ if __name__ == "__main__":
         "applied_operators": ["IPC", "PRV"]
     }
 
+    handler = MutantTester(original_folder)
     mutation_result = MutationResult(**mutation_data)
-    replace_mutated_files(original_folder, mutation_result)
+    handler.apply_and_test_mutations(mutation_result)
+
+
+if __name__ == "__main__":
+    main()
