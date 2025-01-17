@@ -1,5 +1,6 @@
 # Project Specific
 test-results
+dev-junit-runner
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

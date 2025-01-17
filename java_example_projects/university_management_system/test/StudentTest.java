@@ -1,13 +1,11 @@
-import org.junit.Before;
-import org.junit.Test;
-
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class StudentTest {
     private Student student;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         student = new Student("Test Student", 20, "S999", "Computer Science");
     }
 

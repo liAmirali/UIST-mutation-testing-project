@@ -1,15 +1,13 @@
-import org.junit.Before;
-import org.junit.Test;
-
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CourseTest {
     private Course course;
     private Professor professor;
     private Student student;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         professor = new Professor("Test Professor", 45, "P999", "Computer Science");
         course = new Course("CS101", "Test Course", professor);
         student = new Student("Test Student", 20, "S999", "Computer Science");
@@ -40,7 +38,7 @@ public class CourseTest {
     public void testMaxEnrollment() {
         // Try to enroll 31 students (max is 30)
         for (int i = 0; i < 31; i++) {
-            Student student = new Student("Student" + i, 20, "S" + i, "Computer Science");
+            Student student = new Student("Student" + i, "S" + i, "Computer Science");
             if (i < 30) {
                 assertTrue(course.enrollStudent(student));
             } else {
