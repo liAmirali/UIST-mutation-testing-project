@@ -12,8 +12,8 @@ class JUnitTestRunner:
         Args:
             src_dir (str): Path to source code directory
             test_dir (str): Path to test code directory
-            jar_files_dir (str): Path to all the JAR files required for compilation and testing
         """
+
         self._src_dir = Path(src_dir)
         self._test_dir = Path(test_dir)
         self._jar_files_dir = Path("./lib")

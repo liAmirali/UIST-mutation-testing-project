@@ -1,11 +1,11 @@
 import os
 import shutil
-
-from src.output_classes import MutationResult, Mutation
+from typing import List
+from util_classes import MutationResult, Mutation
 from src.test_runner import JUnitTestRunner
 
 class MutantTester:
-    def __init__(self, original_dir: str, test_dir: str,  mutation_result: MutationResult):
+    def __init__(self, original_dir: str, test_dir: str,  mutation_results: List[MutationResult]):
         """
         Initialize the JavaMutationHandler.
 
@@ -16,7 +16,7 @@ class MutantTester:
         self._original_dir = original_dir
         self._test_dir = test_dir
         self._mutation_dir = original_dir + "_mutated"
-        self._mutation_result = mutation_result
+        self._mutation_results = mutation_results
 
         self._test_runner = JUnitTestRunner(self._mutation_dir, self._test_dir)
 
@@ -30,13 +30,14 @@ class MutantTester:
 
         self._init_mutation_dir()
 
-        for mutation in self._mutation_result.mutations:
-            try:
-                self._apply_single_mutation(mutation)
-                # Compile and test the mutated code
-                self._test_mutated_source(mutation)
-            finally:
-                self._revert_mutant_file()
+        for mutation_result in self._mutation_results:
+            for mutation in mutation_result.mutations:
+                try:
+                    self._apply_single_mutation(mutation)
+                    # Compile and test the mutated code
+                    self._test_mutated_source(mutation)
+                finally:
+                    self._revert_mutant_file()
 
     def _init_mutation_dir(self) -> str:
         """
@@ -86,7 +87,7 @@ class MutantTester:
         Test the mutated Java source code.
 
         Args:
-            mutated_source (str): Mutated Java source code.
+            mutation (Mutation): Single mutation object containing mutation details.
         """
         
         self._test_runner.run_test_runner(result_filename=mutation.id)

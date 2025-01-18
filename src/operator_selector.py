@@ -3,11 +3,11 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import json
 import logging
 
-from src.output_classes import MutationOperatorSelection
+from util_classes import MutationOperatorSelection
 from src.vars import GOOGLE_API_KEY
 
 class OperatorSelector:
@@ -176,7 +176,7 @@ class OperatorSelector:
             self._logger.error(f"Error parsing LLM response: {str(e)}")
             raise ValueError(f"Failed to parse LLM response: {str(e)}")
 
-    def generate(self, user_prompt: str) -> Dict:
+    def generate(self, user_prompt: str) -> Tuple[List[MutationOperatorSelection], Dict]:
         """Answer a question using the RAG system."""
         retriever = self._get_retriever()
 

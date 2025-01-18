@@ -3,11 +3,11 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import json
 import logging
 
-from src.output_classes import Mutation, MutationLocation, MutationResult
+from util_classes import Mutation, MutationLocation, MutationResult
 from src.vars import GOOGLE_API_KEY
 
 class MutationAssistant:
@@ -141,7 +141,7 @@ class MutationAssistant:
             self._logger.error(f"Error parsing LLM response: {str(e)}")
             raise ValueError(f"Failed to parse LLM response: {str(e)}")
 
-    def generate(self, source_code: str, mutation_operators: List[str]) -> Dict:
+    def generate(self, source_code: str, mutation_operators: List[str]) -> Tuple[MutationResult, Dict]:
         """Answer a question using the RAG system."""
         context = self._get_relevant_documents(mutation_operators)
 
