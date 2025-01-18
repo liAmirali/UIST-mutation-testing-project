@@ -3,9 +3,9 @@ from src.operator_selector import OperatorSelector
 from src.mutation_assistant import MutationAssistant
 from src.mutant_tester import MutantTester
 
-from src.util_classes import MutationResult
+from src.util_classes import MutationResult, TestSuiteResult
 
-from typing import List
+from typing import List, Tuple, Dict
 
 import os
 import shutil
@@ -126,6 +126,13 @@ class App:
         """
 
         self.mutant_tester.apply_and_test_mutations(mutation_results)
+
+    def get_test_results(self) -> Tuple[TestSuiteResult, Dict]:
+        """
+        Get the test results and their summary for the project.
+        """
+
+        return self.mutant_tester.read_test_results(), self.mutant_tester.get_mutation_summary()
             
     def get_file_relpath(self, file_path: str):
         """

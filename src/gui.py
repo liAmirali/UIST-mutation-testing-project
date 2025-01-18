@@ -172,8 +172,55 @@ class MutationTesterGUI:
         self.explanation_text = scrolledtext.ScrolledText(explanation_frame, height=4, wrap=tk.WORD)
         self.explanation_text.pack(fill=tk.X)
         
-        # Navigation
-        ttk.Button(page, text="← Back", command=lambda: self.notebook.select(1)).pack(side=tk.BOTTOM, pady=20)
+        # Navigation and test buttons frame
+        button_frame = ttk.Frame(page)
+        button_frame.pack(side=tk.BOTTOM, pady=20)
+        
+        # Back button
+        ttk.Button(button_frame, text="← Back", 
+                  command=lambda: self.notebook.select(1)).pack(side=tk.LEFT, padx=5)
+        
+        # Test Mutants button
+        ttk.Button(button_frame, text="Test Mutants and Evaluate", 
+                  command=self.run_mutation_tests).pack(side=tk.LEFT, padx=5)
+
+    def run_mutation_tests(self):
+        """
+        Run mutation tests and display results
+        """
+        if not self.app:
+            self.logger.error("Mutation testing failed: Project not initialized")
+            messagebox.showerror("Error", "Project not initialized")
+            return
+            
+        try:
+            self.logger.info("Starting mutation testing")
+            
+            # Show a progress message
+            progress_window = tk.Toplevel(self.root)
+            progress_window.title("Testing Mutations")
+            progress_window.geometry("300x100")
+            
+            progress_label = ttk.Label(progress_window, 
+                                     text="Testing mutations... This may take a while.")
+            progress_label.pack(pady=20)
+            
+            progress_bar = ttk.Progressbar(progress_window, mode='indeterminate')
+            progress_bar.pack(fill=tk.X, padx=20)
+            progress_bar.start()
+            
+            # Run the mutation tests
+            self.app.run_mutant_tester(self.mutation_results)
+            
+            # Close progress window
+            progress_window.destroy()
+            
+            self.logger.info("Mutation testing completed successfully")
+            messagebox.showinfo("Success", "Mutation testing completed successfully!")
+            
+        except Exception as e:
+            self.logger.error("Failed to run mutation tests", exc_info=True)
+            messagebox.showerror("Error", f"Failed to run mutation tests: {str(e)}")
 
     def initialize_project(self):
         project_name = self.project_name_var.get().strip()

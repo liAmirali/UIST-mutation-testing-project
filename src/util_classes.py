@@ -3,6 +3,7 @@ from typing import List, Optional
 from dataclasses import dataclass
 from pydantic import BaseModel, Field
 
+# Mutations
 @dataclass
 class MutationLocation:
     """Represents the location of a mutation in the source code"""
@@ -29,3 +30,25 @@ class MutationOperatorSelection(BaseModel):
     """Represents a mutation operator selection"""
     operator_name: str = Field(..., description="Name of the mutation operator selected")
     reason: str = Field(..., description="Explanation of why this operator was selected")
+
+
+# Test results
+@dataclass
+class TestResult:
+    test_name: str
+    test_unique_id: str
+    is_passed: bool
+    error_message: str
+
+@dataclass
+class TestClassResult:
+    test_class_name: str
+    passed_tests: int
+    failed_tests: int
+    total_tests: int
+    test_results: List[TestResult]
+
+@dataclass
+class TestSuiteResult:
+    timestamp: str
+    test_classes: List[TestClassResult]
