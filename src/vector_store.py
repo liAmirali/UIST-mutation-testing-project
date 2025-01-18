@@ -59,8 +59,6 @@ class VectorStore:
             self._logger.info(f"Loaded {len(docs)} documents from {file_path}")
             return docs
 
-        return None
-
     def create_vector_store(self, documents: List[Document]):
         """
         Create vector store from documents or text files.

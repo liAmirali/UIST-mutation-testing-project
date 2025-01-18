@@ -15,16 +15,15 @@ class Mutation(BaseModel):
     """Represents a single mutation in the code"""
     id: str = Field(..., description="Unique identifier for the mutation (e.g., M1, M2)")
     operator: str = Field(..., description="Name of the mutation operator applied")
-    path: str = Field(..., description="Path to the file where the mutation was applied")
     mutated_code: str = Field(..., description="Modified code after applying the mutation")
     location: MutationLocation = Field(..., description="Location of the mutation in the source code")
     explanation: str = Field(..., description="Explanation of why and how the code was mutated")
 
 class MutationResult(BaseModel):
     """Represents the complete mutation testing result"""
+    rel_path: str = Field(..., description="Relative path to the file where the mutation was applied from the original directory")
     total_mutations: int = Field(..., description="Total number of mutations generated")
     mutations: List[Mutation] = Field(..., description="List of all generated mutations")
-    applied_operators: List[str] = Field(..., description="List of mutation operators that were applied")
 
 class MutationOperatorSelection(BaseModel):
     """Represents a mutation operator selection"""
@@ -52,3 +51,6 @@ class TestClassResult:
 class TestSuiteResult:
     timestamp: str
     test_classes: List[TestClassResult]
+    compiled: bool
+    compile_error: Optional[str] = None
+

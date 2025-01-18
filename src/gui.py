@@ -1,3 +1,4 @@
+import os.path
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 import logging
@@ -43,6 +44,7 @@ class MutationTesterGUI:
             self.setup_project_setup_page()
             self.setup_operator_selection_page()
             self.setup_mutations_page()
+            self.setup_results_page()
             
             self.logger.debug("UI setup completed successfully")
         except Exception as e:
@@ -184,43 +186,93 @@ class MutationTesterGUI:
         ttk.Button(button_frame, text="Test Mutants and Evaluate", 
                   command=self.run_mutation_tests).pack(side=tk.LEFT, padx=5)
 
-    def run_mutation_tests(self):
-        """
-        Run mutation tests and display results
-        """
-        if not self.app:
-            self.logger.error("Mutation testing failed: Project not initialized")
-            messagebox.showerror("Error", "Project not initialized")
-            return
-            
-        try:
-            self.logger.info("Starting mutation testing")
-            
-            # Show a progress message
-            progress_window = tk.Toplevel(self.root)
-            progress_window.title("Testing Mutations")
-            progress_window.geometry("300x100")
-            
-            progress_label = ttk.Label(progress_window, 
-                                     text="Testing mutations... This may take a while.")
-            progress_label.pack(pady=20)
-            
-            progress_bar = ttk.Progressbar(progress_window, mode='indeterminate')
-            progress_bar.pack(fill=tk.X, padx=20)
-            progress_bar.start()
-            
-            # Run the mutation tests
-            self.app.run_mutant_tester(self.mutation_results)
-            
-            # Close progress window
-            progress_window.destroy()
-            
-            self.logger.info("Mutation testing completed successfully")
-            messagebox.showinfo("Success", "Mutation testing completed successfully!")
-            
-        except Exception as e:
-            self.logger.error("Failed to run mutation tests", exc_info=True)
-            messagebox.showerror("Error", f"Failed to run mutation tests: {str(e)}")
+    def setup_results_page(self):
+        """Setup the mutation testing results page"""
+        page = ttk.Frame(self.notebook)
+        self.notebook.add(page, text="Step 4: Test Results")
+
+        # Summary section
+        summary_frame = ttk.LabelFrame(page, text="Mutation Testing Summary", padding="10")
+        summary_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        # Create a frame for statistics with grid layout
+        stats_frame = ttk.Frame(summary_frame)
+        stats_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        # Statistics labels
+        self.stats_labels = {}
+        stats = [
+            ("total_mutants", "Total Mutants:"),
+            ("killed_mutants", "Killed Mutants:"),
+            ("survived_mutants", "Survived Mutants:"),
+            ("mutation_score", "Mutation Score:")
+        ]
+
+        for i, (key, text) in enumerate(stats):
+            ttk.Label(stats_frame, text=text).grid(row=i//2, column=i%2*2, pady=5, padx=5, sticky='e')
+            self.stats_labels[key] = ttk.Label(stats_frame, text="--")
+            self.stats_labels[key].grid(row=i//2, column=i%2*2+1, pady=5, padx=5, sticky='w')
+
+        # Test Results section
+        results_frame = ttk.Frame(page)
+        results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        # Split view for test classes and their details
+        paned = ttk.PanedWindow(results_frame, orient=tk.HORIZONTAL)
+        paned.pack(fill=tk.BOTH, expand=True)
+
+        # Left pane - Test classes list
+        left_frame = ttk.Frame(paned)
+        paned.add(left_frame, weight=1)
+
+        ttk.Label(left_frame, text="Test Classes").pack(fill=tk.X, pady=5)
+        
+        self.test_classes_tree = ttk.Treeview(left_frame, columns=("passed", "failed", "total"), show="headings", height=10)
+        self.test_classes_tree.heading("passed", text="Passed")
+        self.test_classes_tree.heading("failed", text="Failed")
+        self.test_classes_tree.heading("total", text="Total")
+        self.test_classes_tree.column("passed", width=70, anchor="center")
+        self.test_classes_tree.column("failed", width=70, anchor="center")
+        self.test_classes_tree.column("total", width=70, anchor="center")
+        self.test_classes_tree.pack(fill=tk.BOTH, expand=True)
+        self.test_classes_tree.bind('<<TreeviewSelect>>', self.on_test_class_select)
+
+        # Right pane - Test details
+        right_frame = ttk.Frame(paned)
+        paned.add(right_frame, weight=2)
+
+        # Test impact section
+        impact_frame = ttk.LabelFrame(right_frame, text="Test Impact Analysis", padding="5")
+        impact_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        self.impact_tree = ttk.Treeview(impact_frame, 
+                                      columns=("test", "mutants_killed"),
+                                      show="headings",
+                                      height=6)
+        self.impact_tree.heading("test", text="Test Name")
+        self.impact_tree.heading("mutants_killed", text="Mutants Killed")
+        self.impact_tree.column("test", width=300)
+        self.impact_tree.column("mutants_killed", width=100, anchor="center")
+        self.impact_tree.pack(fill=tk.X)
+
+        # Individual test results
+        test_results_frame = ttk.LabelFrame(right_frame, text="Test Results", padding="5")
+        test_results_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.test_results_tree = ttk.Treeview(test_results_frame,
+                                            columns=("name", "status", "error"),
+                                            show="headings")
+        self.test_results_tree.heading("name", text="Test Name")
+        self.test_results_tree.heading("status", text="Status")
+        self.test_results_tree.heading("error", text="Error Message")
+        self.test_results_tree.column("name", width=200)
+        self.test_results_tree.column("status", width=100, anchor="center")
+        self.test_results_tree.column("error", width=300)
+        self.test_results_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Navigation
+        ttk.Button(page, text="← Back to Mutations", 
+                  command=lambda: self.notebook.select(2)).pack(side=tk.BOTTOM, pady=20)
 
     def initialize_project(self):
         project_name = self.project_name_var.get().strip()
@@ -313,34 +365,50 @@ class MutationTesterGUI:
             self.logger.error("Mutation generation failed: Project not initialized")
             messagebox.showerror("Error", "Project not initialized")
             return
-            
+
         try:
             self.logger.info("Starting mutation generation")
             mutation_results = self.app.generate_mutations()
-            
+
+            # Store mutation results for later use
+            self.mutation_results = mutation_results
+
             # Clear existing items
             self.files_tree.delete(*self.files_tree.get_children())
-            
+
             # Process mutation results
             self.mutations_by_file = {}
             total_mutations = 0
-            
+
             self.logger.debug("Processing mutation results")
             for mutation_result in mutation_results:
-                for mutation in mutation_result.mutations:
-                    if mutation.total_mutations > 0:
-                        file_path = self.app.get_file_relpath(mutation.path)
-                        self.logger.debug(f"Processing mutations for file: {file_path}")
-                        self.mutations_by_file[file_path] = {
-                            'source': mutation.original_code,
-                            'mutations': mutation.mutations
-                        }
-                        self.files_tree.insert("", tk.END, text=file_path, values=(file_path,))
-                        total_mutations += mutation.total_mutations
-            
+                file_path = self.app.get_original_source_code_path(mutation_result.rel_path)
+                if not file_path:
+                    continue
+
+                original_code = self.app.read_file_content(file_path=file_path)
+
+                self.logger.debug(f"Processing mutations for file: {file_path}")
+                self.mutations_by_file[file_path] = {
+                    'source': original_code,
+                    'mutations': mutation_result.mutations  # Direct access to mutations
+                }
+
+                # Insert the file into the tree with explicit text and values
+                self.files_tree.insert("", tk.END,
+                                     text=file_path,  # This sets the visible text
+                                     values=(file_path,))  # This sets the underlying value
+
+                total_mutations += len(mutation_result.mutations)
+
+            if not self.mutations_by_file:
+                self.logger.warning("No files were processed for mutations")
+                messagebox.showwarning("Warning", "No files were found for mutation testing")
+                return
+
             self.logger.info(f"Generated {total_mutations} mutations across {len(self.mutations_by_file)} files")
             self.notebook.select(2)
-            
+
         except Exception as e:
             self.logger.error("Failed to generate mutations", exc_info=True)
             messagebox.showerror("Error", f"Failed to generate mutations: {str(e)}")
@@ -413,3 +481,107 @@ class MutationTesterGUI:
         except Exception as e:
             self.logger.error("Error displaying mutation details", exc_info=True)
             messagebox.showerror("Error", f"Error displaying mutation: {str(e)}")
+
+    def update_results_page(self):
+        """Update the results page with test results and summary"""
+        try:
+            test_results, summary = self.app.get_test_results()
+            
+            # Update summary statistics
+            self.stats_labels["total_mutants"].config(text=str(summary["total_mutants"]))
+            self.stats_labels["killed_mutants"].config(text=str(summary["killed_mutants"]))
+            self.stats_labels["survived_mutants"].config(text=str(summary["survived_mutants"]))
+            self.stats_labels["mutation_score"].config(text=f"{summary['mutation_score']:.2f}%")
+
+            # Clear existing items
+            self.test_classes_tree.delete(*self.test_classes_tree.get_children())
+            self.impact_tree.delete(*self.impact_tree.get_children())
+            self.test_results_tree.delete(*self.test_results_tree.get_children())
+
+            # Update test impact analysis
+            for test_name, mutants_killed in summary["test_impact"].items():
+                self.impact_tree.insert("", tk.END, values=(test_name, mutants_killed))
+
+            # Update test classes list
+            for mutant_id, suite_result in test_results.items():
+                for test_class in suite_result.test_classes:
+                    self.test_classes_tree.insert("", tk.END,
+                                                iid=test_class.test_class_name,
+                                                values=(test_class.passed_tests,
+                                                       test_class.failed_tests,
+                                                       test_class.total_tests))
+
+            # Sort impact tree by mutants killed (descending)
+            impact_items = [(item, int(self.impact_tree.set(item, "mutants_killed")))
+                          for item in self.impact_tree.get_children("")]
+            impact_items.sort(key=lambda x: x[1], reverse=True)
+            
+            for index, (item, _) in enumerate(impact_items):
+                self.impact_tree.move(item, "", index)
+
+            self.notebook.select(3)  # Switch to results page
+
+        except Exception as e:
+            self.logger.error("Failed to update results page", exc_info=True)
+            messagebox.showerror("Error", f"Failed to update results: {str(e)}")
+
+    def on_test_class_select(self, event):
+        """Handle selection of a test class"""
+        selection = self.test_classes_tree.selection()
+        if not selection:
+            return
+
+        test_class_name = selection[0]
+        self.test_results_tree.delete(*self.test_results_tree.get_children())
+
+        # Find the test results for this class
+        test_results, _ = self.app.get_test_results()
+        for suite_result in test_results.values():
+            for test_class in suite_result.test_classes:
+                if test_class.test_class_name == test_class_name:
+                    for test_result in test_class.test_results:
+                        status = "✓ Passed" if test_result.is_passed else "✗ Failed"
+                        status_tags = ("passed",) if test_result.is_passed else ("failed",)
+                        self.test_results_tree.insert("", tk.END,
+                                                    values=(test_result.test_name,
+                                                           status,
+                                                           test_result.error_message or ""))
+
+    def run_mutation_tests(self):
+        """Run mutation tests and display results"""
+        if not self.app:
+            self.logger.error("Mutation testing failed: Project not initialized")
+            messagebox.showerror("Error", "Project not initialized")
+            return
+            
+        try:
+            self.logger.info("Starting mutation testing")
+            
+            # Show a progress window
+            progress_window = tk.Toplevel(self.root)
+            progress_window.title("Testing Mutations")
+            progress_window.geometry("300x100")
+            
+            progress_label = ttk.Label(progress_window, 
+                                     text="Testing mutations... This may take a while.")
+            progress_label.pack(pady=20)
+            
+            progress_bar = ttk.Progressbar(progress_window, mode='indeterminate')
+            progress_bar.pack(fill=tk.X, padx=20)
+            progress_bar.start()
+            
+            # Run the mutation tests
+            self.app.run_mutant_tester(self.mutation_results)
+            
+            # Close progress window
+            progress_window.destroy()
+            
+            # Update and show results page
+            self.update_results_page()
+            
+            self.logger.info("Mutation testing completed successfully")
+            
+        except Exception as e:
+            self.logger.error("Failed to run mutation tests", exc_info=True)
+            messagebox.showerror("Error", f"Failed to run mutation tests: {str(e)}")
+        

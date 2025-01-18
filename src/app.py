@@ -7,6 +7,7 @@ from src.util_classes import MutationResult, TestSuiteResult
 
 from typing import List, Tuple, Dict
 
+from pathlib import Path
 import os
 import shutil
 
@@ -18,8 +19,10 @@ class App:
         """
         Initialize the application with the given project name.
 
-        Args:
-            project_name (str): Name of the project.
+
+        :param project_name:
+        :param test_code_path:
+        :param source_code_path:
         """
 
         if self._check_project_name_exists(project_name):
@@ -45,7 +48,8 @@ class App:
         self.mutant_tester = MutantTester(
             original_dir=self._project_original_src_dir,
             test_dir=self._project_tests_dir,
-            mutation_dir=self._project_mutations_dir
+            mutation_dir=self._project_mutations_dir,
+            test_results_dir=self._project_test_results_dir
         )
 
     def _check_project_name_exists(self, project_name: str) -> bool:
@@ -109,14 +113,21 @@ class App:
 
         mutation_results = []
 
-        for source_file in self._project_original_src_dir.glob("**/*.java"):
+        for source_file in Path(self._project_original_src_dir).glob("**/*.java"):
             with open(source_file, 'r') as file:
                 source_code = file.read()
 
             # TODO: Retrieve other helping source codes
 
-            mutation_result, _ = self.mutation_assistant.generate(source_code=source_code, mutation_operators=operator_names)
-            mutation_results.append(mutation_result)
+            try:
+                mutation_result, _ = self.mutation_assistant.generate(
+                    source_code=source_code,
+                    mutation_operators=operator_names,
+                    mutant_filepath=str(source_file.relative_to(self._project_original_src_dir))
+                )
+                mutation_results.append(mutation_result)
+            except:
+                continue
         
         return mutation_results
     
@@ -127,15 +138,28 @@ class App:
 
         self.mutant_tester.apply_and_test_mutations(mutation_results)
 
-    def get_test_results(self) -> Tuple[TestSuiteResult, Dict]:
+    def get_test_results(self) -> Tuple[Dict[str, TestSuiteResult], Dict]:
         """
         Get the test results and their summary for the project.
         """
 
-        return self.mutant_tester.read_test_results(), self.mutant_tester.get_mutation_summary()
+        test_results = self.mutant_tester.read_test_results()
+        summary = self.mutant_tester.get_mutation_summary(test_results)
+
+        return test_results, summary
             
     def get_file_relpath(self, file_path: str):
         """
         Get the relative path of the file.
         """
-        return os.path.relpath(file_path, self.app._project_original_src_dir)
+        return os.path.relpath(file_path, self._project_original_src_dir)
+
+    def get_original_source_code_path(self, file_rel_path: str) -> str:
+        return os.path.join(self._project_original_src_dir, file_rel_path)
+
+    def read_file_content(self, file_path: str):
+        """
+        Read the content of the file.
+        """
+        with open(file_path, 'r') as file:
+            return file.read()

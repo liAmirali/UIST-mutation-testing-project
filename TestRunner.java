@@ -1,22 +1,19 @@
-import org.junit.platform.launcher.Launcher;
-import org.junit.platform.launcher.LauncherDiscoveryRequest;
-import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
-import org.junit.platform.launcher.core.LauncherFactory;
-import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
-import org.junit.platform.launcher.listeners.TestExecutionSummary;
-import org.junit.platform.engine.discovery.DiscoverySelectors;
-import org.junit.platform.engine.TestExecutionResult;
-import org.junit.platform.launcher.TestExecutionListener;
-import org.junit.platform.launcher.TestIdentifier;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.discovery.DiscoverySelectors;
+import org.junit.platform.launcher.Launcher;
+import org.junit.platform.launcher.LauncherDiscoveryRequest;
+import org.junit.platform.launcher.TestExecutionListener;
+import org.junit.platform.launcher.TestIdentifier;
+import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
+import org.junit.platform.launcher.core.LauncherFactory;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class TestRunner {
     static class TestResult {
@@ -52,10 +49,14 @@ public class TestRunner {
     static class TestSuiteResult {
         String timestamp;
         List<TestClassResult> test_classes;
+        boolean compiled;
+        String compile_error;
 
         public TestSuiteResult(List<TestClassResult> testClasses) {
             this.timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             this.test_classes = testClasses;
+            this.compiled = true;
+            this.compile_error = null;
         }
     }
 
@@ -73,9 +74,12 @@ public class TestRunner {
         @Override
         public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
             if (testIdentifier.isTest()) {
-                String className = extractClassName(testIdentifier);
+                String uniqueId = testIdentifier.getUniqueId();
+                String className = extractClassName(uniqueId);
+                String methodName = extractMethodName(uniqueId);
+
                 TestClassResult classResult = results.computeIfAbsent(className,
-                    k -> new TestClassResult(className));
+                        k -> new TestClassResult(className));
 
                 boolean isPassed = testExecutionResult.getStatus() == TestExecutionResult.Status.SUCCESSFUL;
                 String errorMessage = null;
@@ -84,10 +88,10 @@ public class TestRunner {
                 }
 
                 TestResult testResult = new TestResult(
-                    testIdentifier.getDisplayName(),
-                    testIdentifier.getUniqueId(),
-                    isPassed,
-                    errorMessage
+                        methodName,  // Use the extracted method name instead of display name
+                        uniqueId,   // Use the full unique ID
+                        isPassed,
+                        errorMessage
                 );
 
                 classResult.test_results.add(testResult);
@@ -100,11 +104,30 @@ public class TestRunner {
             }
         }
 
-        private String extractClassName(TestIdentifier testIdentifier) {
-            String[] segments = testIdentifier.getUniqueId().split("/");
-            for (String segment : segments) {
-                if (segment.startsWith("class:")) {
-                    return segment.substring(6);
+        private String extractClassName(String uniqueId) {
+            // Extract class name from format: "[engine:junit-jupiter]/[class:CourseTest]/[method:testSetInstructor()]"
+            int classStart = uniqueId.indexOf("[class:");
+            if (classStart != -1) {
+                int classEnd = uniqueId.indexOf("]", classStart);
+                if (classEnd != -1) {
+                    return uniqueId.substring(classStart + 7, classEnd);
+                }
+            }
+            return "Unknown";
+        }
+
+        private String extractMethodName(String uniqueId) {
+            // Extract method name from format: "[engine:junit-jupiter]/[class:CourseTest]/[method:testSetInstructor()]"
+            int methodStart = uniqueId.indexOf("[method:");
+            if (methodStart != -1) {
+                int methodEnd = uniqueId.indexOf("]", methodStart);
+                if (methodEnd != -1) {
+                    String methodWithParens = uniqueId.substring(methodStart + 8, methodEnd);
+                    // Remove the parentheses at the end if they exist
+                    if (methodWithParens.endsWith("()")) {
+                        return methodWithParens.substring(0, methodWithParens.length() - 2);
+                    }
+                    return methodWithParens;
                 }
             }
             return "Unknown";
@@ -114,6 +137,7 @@ public class TestRunner {
             return new ArrayList<>(results.values());
         }
     }
+
 
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -145,7 +169,7 @@ public class TestRunner {
     public static void runTests(Class<?>... testClasses) {
         LauncherDiscoveryRequestBuilder requestBuilder = LauncherDiscoveryRequestBuilder.request();
         Arrays.stream(testClasses)
-              .forEach(testClass -> requestBuilder.selectors(DiscoverySelectors.selectClass(testClass)));
+                .forEach(testClass -> requestBuilder.selectors(DiscoverySelectors.selectClass(testClass)));
 
         LauncherDiscoveryRequest request = requestBuilder.build();
         Launcher launcher = LauncherFactory.create();
@@ -160,9 +184,7 @@ public class TestRunner {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         String json = gson.toJson(suiteResult);
 
-        // Create filename with timestamp
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        String filename = "test_results_" + timestamp + ".json";
+        String filename = "test_results.json";
 
         // Write to file
         try (FileWriter writer = new FileWriter(filename)) {

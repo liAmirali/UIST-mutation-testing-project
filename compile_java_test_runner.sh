@@ -1,0 +1,3 @@
+#!/bin/bash
+
+javac TestRunner.java -cp "lib/apiguardian-api-1.1.2.jar:lib/gson-2.11.0.jar:lib/hamcrest-core-1.3.jar:lib/junit-jupiter-api-5.11.4.jar:lib/junit-jupiter-params-5.11.4.jar:lib/junit-platform-engine-1.11.4.jar:lib/junit-vintage-engine-5.11.4.jar:lib/error_prone_annotations-2.27.0.jar:lib/hamcrest-3.0.jar:lib/junit-4.13.2.jar:lib/junit-jupiter-engine-5.11.4.jar:lib/junit-platform-commons-1.11.4.jar:lib/junit-platform-launcher-1.11.4.jar:lib/opentest4j-1.3.0.jar" -d java-test-runner

@@ -5,6 +5,7 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 
 from typing import List, Dict, Tuple
 import json
+import os
 import logging
 
 from src.util_classes import Mutation, MutationLocation, MutationResult
@@ -24,40 +25,43 @@ class MutationAssistant:
             temperature=0.3
         )
 
-        self.system_prompt = """
-        You are an expert mutation testing tool. Your task is to analyze Java source code and generate valid mutations based on provided mutation operators.
+        self.system_prompt = """You are a mutation generator assistant for Java code. Your task is to generate code mutants based on given mutation operators. You will be provided with:
 
-        You must return mutations in the following structured format without any markdown styling code:
+1.  **Source Code:** The primary Java code that you will mutate.
+2.  **Helper Source Code:** Additional Java code that provides context but **must not be mutated**. This code may contain subclasses or related classes which give more information about the source code. The helper source code is provided to enhance your understanding of the project's structure and dependencies, allowing you to generate more contextually relevant and realistic mutants.
+3.  **Mutation Operators:** A list of mutation operators, each described with its name, category, preconditions, description, and an example.
+
+Your responsibilities are:
+
+*   **Apply mutation operators ONLY to the Source Code.** You MUST NOT modify the Helper Source Code.
+*   **Generate the mutant based on ONLY ONE valid mutation operator application.** Do not combine multiple mutation operators in one mutant. And DO NOT use the operator in multiple locations in a SINGLE MUTANT. But you are free to use the operator as much as possible in separate mutants.
+*   **Output ONLY valid Java code.** The mutated code must compile and follow Java syntax.
+*   **Your output must follow the specified JSON format
+{
+    "total_mutations": <number>,
+    "mutations": [
         {
-            "total_mutations": <number>,
-            "mutations": [
-                {
-                    "id": "M1",
-                    "operator": "<operator_name>",
-                    "mutated_code": "<full_mutated_source_code>",
-                    "location": {
-                        "line_number": <line_number>,
-                        "start_column": <optional_start>,
-                        "end_column": <optional_end>
-                    },
-                    "explanation": "<brief_explanation>"
-                }
-            ],
-            "applied_operators": ["<operator1>", "<operator2>", ...]
+            "id": "M1",
+            "operator": "<operator_name>",
+            "mutated_code": "<full_mutated_source_code>",
+            "location": {
+                "line_number": <line_number>,
+                "start_column": <optional_start>,
+                "end_column": <optional_end>
+            },
+            "explanation": "<brief_explanation>"
         }
+    ]
+}
 
-        Instructions:
-        1. Apply all applicable mutation operators to every possible location in the source code
-        2. Ensure mutations are syntactically correct and compilable. Provide the full mutant code and avoid partial code outputs. The code must be runnable.
-        3. Do not generate redundant mutations. Only one mutation should be generated for each operator per applicable location.
-        4. Include line numbers for each mutation
-        5. Provide brief but clear explanations
-        6. Return a valid JSON object matching the above structure
-        7. If no mutations are possible, return an object with total_mutations: 0 and empty arrays
-        8. Ensure each operator is applied exactly once by selecting one valid mutation for it.
+**Important Constraints:**
 
-        Your response must be ONLY the JSON object - no additional text or explanations or stylings```.
-        """
+*   **Focus on the provided operators:** Do not generate mutations that are not explicitly described in the `mutation_operators`.
+*   **Strictly adhere to the preconditions for each operator:** If preconditions are not met in the code, do not attempt to apply that mutation.
+*   **Maintain code structure:**  Do not drastically change the structure of the code. Mutations should be localized as much as possible.
+*   **The goal is to test the impact of small changes.** The mutations should be minimal to help isolate potential issues.
+*   **Always output in JSON format. For long values DO NOT use plus sign to concatenate the string.**
+*   **Ensure mutations are syntactically correct and compilable.** Provide the full mutant code and avoid partial code outputs. The code must be runnable."""
 
         self._vector_store = vector_store
 
@@ -72,6 +76,12 @@ class MutationAssistant:
         ```java
         {source_code}
         ```
+
+        Helper Source Code:
+        ```java
+        {helper_source}
+        ```
+
         Mutation Operators: {mutation_operators}
 
         Generate mutations and return them in the specified JSON format.
@@ -79,7 +89,7 @@ class MutationAssistant:
 
         self.prompt = PromptTemplate(
             template=self.qa_template,
-            input_variables=["system_prompt", "context", "source_code", "mutation_operators"]
+            input_variables=["system_prompt", "context", "source_code", "helper_source", "mutation_operators"]
         )
 
     def _get_relevant_documents(self, operator_names: List[str]) -> List:
@@ -88,15 +98,15 @@ class MutationAssistant:
             raise ValueError("Vector store not initialized. Please set vector store first.")
 
         self._logger.info(f"Retrieving documents for operator names: {operator_names}")
-        
+
         documents = self._vector_store.similarity_search(
-            query="",  # Empty query since we're only using metadata filtering
+            query=" ".join(operator_names),
             k=len(operator_names),
             filter={
                 "op_name": {"$in": operator_names}
             }
         )
-        
+
         return documents
 
     def _create_qa_chain(self):
@@ -134,14 +144,13 @@ class MutationAssistant:
             return MutationResult(
                 total_mutations=result_dict['total_mutations'],
                 mutations=mutations,
-                applied_operators=result_dict['applied_operators']
             )
 
         except Exception as e:
             self._logger.error(f"Error parsing LLM response: {str(e)}")
             raise ValueError(f"Failed to parse LLM response: {str(e)}")
 
-    def generate(self, source_code: str, mutation_operators: List[str]) -> Tuple[MutationResult, Dict]:
+    def generate(self, source_code: str, helper_source: str, mutation_operators: List[str]) -> Dict:
         """Answer a question using the RAG system."""
         context = self._get_relevant_documents(mutation_operators)
 
@@ -152,6 +161,7 @@ class MutationAssistant:
         response = qa_chain.invoke({
             "context": context,
             "source_code": source_code,
+            "helper_source": helper_source,
             "mutation_operators": mutation_operators,
             "system_prompt": self.system_prompt
         })
