@@ -6,6 +6,16 @@ from src.app import App
 
 class MutationTesterGUI:
     def __init__(self, root, app: App):
+        # Set up logging configuration
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        self.logger = logging.getLogger(__name__)
+        
+        self.logger.info("Initializing MutationTesterGUI")
+
         self.root = root
         self.root.title("Mutation Testing Tool")
         self.root.geometry("1400x900")
@@ -18,22 +28,26 @@ class MutationTesterGUI:
         # Store app instance
         self.app = None
         
-        # Configure logging
-        logging.basicConfig(level=logging.INFO)
-        self.logger = logging.getLogger(__name__)
-        
         # Initialize components
         self.setup_ui()
+        self.logger.info("GUI initialization completed")
         
     def setup_ui(self):
-        # Create main container with notebook
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-        # Setup pages
-        self.setup_project_setup_page()
-        self.setup_operator_selection_page()
-        self.setup_mutations_page()
+        self.logger.debug("Setting up UI components")
+        try:
+            # Create main container with notebook
+            self.notebook = ttk.Notebook(self.root)
+            self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+            
+            # Setup pages
+            self.setup_project_setup_page()
+            self.setup_operator_selection_page()
+            self.setup_mutations_page()
+            
+            self.logger.debug("UI setup completed successfully")
+        except Exception as e:
+            self.logger.error(f"Error during UI setup: {str(e)}", exc_info=True)
+            raise
 
     def setup_project_setup_page(self):
         page = ttk.Frame(self.notebook)
@@ -163,34 +177,51 @@ class MutationTesterGUI:
 
     def initialize_project(self):
         project_name = self.project_name_var.get().strip()
+        self.logger.info(f"Attempting to initialize project: {project_name}")
+        
         if not project_name:
+            self.logger.warning("Project initialization failed: No project name provided")
             messagebox.showwarning("Warning", "Please enter a project name")
             return
             
         if not self.source_folder or not self.test_folder:
+            self.logger.warning("Project initialization failed: Missing source or test folder")
             messagebox.showwarning("Warning", "Please select both source and test folders")
             return
             
         try:
+            self.logger.debug(f"Initializing App with: project_name={project_name}, "
+                            f"source_folder={self.source_folder}, test_folder={self.test_folder}")
             self.app = App()
             self.app.init(project_name, self.source_folder, self.test_folder)
+            self.logger.info("Project initialized successfully")
             self.notebook.select(1)
         except ValueError as e:
+            self.logger.error(f"Project initialization failed with ValueError: {str(e)}")
             messagebox.showerror("Error", str(e))
         except Exception as e:
+            self.logger.error(f"Project initialization failed with unexpected error", exc_info=True)
             messagebox.showerror("Error", f"Failed to initialize project: {str(e)}")    
     
     def select_source_folder(self):
+        self.logger.debug("Opening source folder selection dialog")
         folder = filedialog.askdirectory(title="Select Source Code Folder")
         if folder:
+            self.logger.info(f"Source folder selected: {folder}")
             self.source_folder = folder
             self.source_label.config(text=folder)
-            
+        else:
+            self.logger.debug("Source folder selection cancelled")
+
     def select_test_folder(self):
+        self.logger.debug("Opening test folder selection dialog")
         folder = filedialog.askdirectory(title="Select Test Folder")
         if folder:
+            self.logger.info(f"Test folder selected: {folder}")
             self.test_folder = folder
             self.test_label.config(text=folder)
+        else:
+            self.logger.debug("Test folder selection cancelled")
             
     def proceed_to_operator_selection(self):
         if not self.source_folder or not self.test_folder:
@@ -200,102 +231,138 @@ class MutationTesterGUI:
         
     def find_operators(self):
         if not self.app:
+            self.logger.error("Operator selection failed: Project not initialized")
             messagebox.showerror("Error", "Project not initialized")
             return
             
         goal = self.goal_text.get('1.0', tk.END).strip()
+        self.logger.info(f"Finding operators for goal: {goal}")
+        
         if not goal:
+            self.logger.warning("Operator selection failed: No goal provided")
             messagebox.showwarning("Warning", "Please describe what you want to test")
             return
             
         try:
+            self.logger.debug("Calling generate_operator_selection")
             selected_operators = self.app.generate_operator_selection(goal)
             
             # Clear existing items
-            for item in self.operators_tree.get_children():
-                self.operators_tree.delete(item)
-                
+            self.operators_tree.delete(*self.operators_tree.get_children())
+            
             # Add new operators
             for op in selected_operators:
+                self.logger.debug(f"Adding operator: {op.operator_name}")
                 self.operators_tree.insert("", tk.END, values=(op.operator_name, op.reason))
                 
+            self.logger.info(f"Successfully found {len(selected_operators)} operators")
+                
         except Exception as e:
+            self.logger.error("Failed to find operators", exc_info=True)
             messagebox.showerror("Error", f"Failed to find operators: {str(e)}")
             
     def generate_mutations(self):
         if not self.app:
+            self.logger.error("Mutation generation failed: Project not initialized")
             messagebox.showerror("Error", "Project not initialized")
             return
             
         try:
+            self.logger.info("Starting mutation generation")
             mutation_results = self.app.generate_mutations()
             
             # Clear existing items
-            for item in self.files_tree.get_children():
-                self.files_tree.delete(item)
-                
+            self.files_tree.delete(*self.files_tree.get_children())
+            
             # Process mutation results
             self.mutations_by_file = {}
+            total_mutations = 0
+            
+            self.logger.debug("Processing mutation results")
             for mutation_result in mutation_results:
                 for mutation in mutation_result.mutations:
                     if mutation.total_mutations > 0:
                         file_path = self.app.get_file_relpath(mutation.path)
+                        self.logger.debug(f"Processing mutations for file: {file_path}")
                         self.mutations_by_file[file_path] = {
                             'source': mutation.original_code,
                             'mutations': mutation.mutations
                         }
-                        # Add to tree
                         self.files_tree.insert("", tk.END, text=file_path, values=(file_path,))
+                        total_mutations += mutation.total_mutations
             
+            self.logger.info(f"Generated {total_mutations} mutations across {len(self.mutations_by_file)} files")
             self.notebook.select(2)
             
         except Exception as e:
+            self.logger.error("Failed to generate mutations", exc_info=True)
             messagebox.showerror("Error", f"Failed to generate mutations: {str(e)}")
             
     def on_file_select(self, event):
         selection = self.files_tree.selection()
         if not selection:
+            self.logger.debug("No file selected")
             return
             
         file_path = self.files_tree.item(selection[0])["text"]
-        file_data = self.mutations_by_file[file_path]
+        self.logger.debug(f"File selected: {file_path}")
         
-        # Clear existing mutations
-        for item in self.mutations_tree.get_children():
-            self.mutations_tree.delete(item)
+        try:
+            file_data = self.mutations_by_file[file_path]
             
-        # Add mutations for this file
-        for mutation in file_data['mutations']:
-            self.mutations_tree.insert("", tk.END, 
-                                     values=(mutation.id, mutation.operator, 
-                                            mutation.location.line_number))
+            # Clear existing mutations
+            self.mutations_tree.delete(*self.mutations_tree.get_children())
             
-        # Show original code
-        self.original_code.delete('1.0', tk.END)
-        self.original_code.insert('1.0', file_data['source'])
-        
-        # Clear mutated code and explanation
-        self.mutated_code.delete('1.0', tk.END)
-        self.explanation_text.delete('1.0', tk.END)
-        
+            # Add mutations for this file
+            for mutation in file_data['mutations']:
+                self.logger.debug(f"Adding mutation: ID={mutation.id}, Operator={mutation.operator}")
+                self.mutations_tree.insert("", tk.END, 
+                                         values=(mutation.id, mutation.operator, 
+                                                mutation.location.line_number))
+            
+            # Show original code
+            self.original_code.delete('1.0', tk.END)
+            self.original_code.insert('1.0', file_data['source'])
+            
+            # Clear mutated code and explanation
+            self.mutated_code.delete('1.0', tk.END)
+            self.explanation_text.delete('1.0', tk.END)
+            
+        except Exception as e:
+            self.logger.error(f"Error processing file selection", exc_info=True)
+            messagebox.showerror("Error", f"Error displaying file contents: {str(e)}")
+
     def on_mutation_select(self, event):
         file_selection = self.files_tree.selection()
         mutation_selection = self.mutations_tree.selection()
         
         if not file_selection or not mutation_selection:
+            self.logger.debug("No complete selection for mutation display")
             return
             
-        file_path = self.files_tree.item(file_selection[0])["text"]
-        mutation_id = self.mutations_tree.item(mutation_selection[0])["values"][0]
-        
-        # Find the selected mutation
-        mutation = next(m for m in self.mutations_by_file[file_path]['mutations'] 
-                       if m.id == mutation_id)
-        
-        # Show mutated code
-        self.mutated_code.delete('1.0', tk.END)
-        self.mutated_code.insert('1.0', mutation.mutated_code)
-        
-        # Show explanation
-        self.explanation_text.delete('1.0', tk.END)
-        self.explanation_text.insert('1.0', mutation.explanation)
+        try:
+            file_path = self.files_tree.item(file_selection[0])["text"]
+            mutation_id = self.mutations_tree.item(mutation_selection[0])["values"][0]
+            
+            self.logger.debug(f"Mutation selected: file={file_path}, mutation_id={mutation_id}")
+            
+            # Find the selected mutation
+            mutation = next(m for m in self.mutations_by_file[file_path]['mutations'] 
+                          if m.id == mutation_id)
+            
+            # Show mutated code
+            self.mutated_code.delete('1.0', tk.END)
+            self.mutated_code.insert('1.0', mutation.mutated_code)
+            
+            # Show explanation
+            self.explanation_text.delete('1.0', tk.END)
+            self.explanation_text.insert('1.0', mutation.explanation)
+            
+            self.logger.debug(f"Successfully displayed mutation details")
+            
+        except StopIteration:
+            self.logger.error(f"Mutation {mutation_id} not found in file {file_path}")
+            messagebox.showerror("Error", "Selected mutation not found")
+        except Exception as e:
+            self.logger.error("Error displaying mutation details", exc_info=True)
+            messagebox.showerror("Error", f"Error displaying mutation: {str(e)}")

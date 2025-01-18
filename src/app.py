@@ -23,16 +23,16 @@ class App:
         """
 
         if self._check_project_name_exists(project_name):
-            raise ValueError(f"Project name '{project_name}' already exists in the configuration file.")
+            raise ValueError(f"Project name '{project_name}' already exists.")
         
         self._source_code_path = source_code_path
         self._test_code_path = test_code_path
 
-        self._project_root_dir = PROJECTS_DIR / project_name
-        self._project_original_src_dir = self._project_root_dir / "original_src"
-        self._project_tests_dir = self._project_root_dir / "tests"
-        self._project_mutations_dir = self._project_root_dir / "mutations"
-        self._project_test_results_dir = self._project_root_dir / "test_results"
+        self._project_root_dir = os.path.join(PROJECTS_DIR, project_name)
+        self._project_original_src_dir = os.path.join(self._project_root_dir, "original_src")
+        self._project_tests_dir = os.path.join(self._project_root_dir, "tests")
+        self._project_mutations_dir = os.path.join(self._project_root_dir, "mutations")
+        self._project_test_results_dir = os.path.join(self._project_root_dir, "test_results")
 
         self._prepare_project_dirs()
 
@@ -42,7 +42,11 @@ class App:
 
         self.operator_selector = OperatorSelector(store)
         self.mutation_assistant = MutationAssistant(store)
-        self.mutant_tester = MutantTester()
+        self.mutant_tester = MutantTester(
+            original_dir=self._project_original_src_dir,
+            test_dir=self._project_tests_dir,
+            mutation_dir=self._project_mutations_dir
+        )
 
     def _check_project_name_exists(self, project_name: str) -> bool:
         """
@@ -56,7 +60,7 @@ class App:
         """
         
         # Check existing folder name in the PROJECTS_DIR
-        return os.path.exists(PROJECTS_DIR / project_name)
+        return os.path.exists(os.path.join(PROJECTS_DIR, project_name)  )
 
     def _prepare_project_dirs(self):
         """
@@ -69,9 +73,22 @@ class App:
         os.makedirs(self._project_test_results_dir, exist_ok=True)
 
         # Copy the source code to the original source directory
-        shutil.copytree(self._source_code_path, self._project_original_src_dir)
+        for item in os.listdir(self._source_code_path):
+            s = os.path.join(self._source_code_path, item)
+            d = os.path.join(self._project_original_src_dir, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d, dirs_exist_ok=True)
+            else:
+                shutil.copy2(s, d)
+        
         # Copy the test code to the tests directory
-        shutil.copytree(self._test_code_path, self._project_tests_dir)
+        for item in os.listdir(self._test_code_path):
+            s = os.path.join(self._test_code_path, item)
+            d = os.path.join(self._project_tests_dir, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d, dirs_exist_ok=True)
+            else:
+                shutil.copy2(s, d)
 
     def generate_operator_selection(self, user_prompt: str):
         """
@@ -102,6 +119,13 @@ class App:
             mutation_results.append(mutation_result)
         
         return mutation_results
+    
+    def run_mutant_tester(self, mutation_results: List[MutationResult]):
+        """
+        Run the mutant tester on the generated mutations.
+        """
+
+        self.mutant_tester.apply_and_test_mutations(mutation_results)
             
     def get_file_relpath(self, file_path: str):
         """

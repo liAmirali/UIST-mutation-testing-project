@@ -5,7 +5,7 @@ from src.util_classes import MutationResult, Mutation
 from src.test_runner import JUnitTestRunner
 
 class MutantTester:
-    def __init__(self, original_dir: str, test_dir: str,  mutation_results: List[MutationResult]):
+    def __init__(self, original_dir: str, test_dir: str, mutation_dir: str):
         """
         Initialize the JavaMutationHandler.
 
@@ -15,12 +15,11 @@ class MutantTester:
         """
         self._original_dir = original_dir
         self._test_dir = test_dir
-        self._mutation_dir = original_dir + "_mutated"
-        self._mutation_results = mutation_results
+        self._mutation_dir = mutation_dir
 
         self._test_runner = JUnitTestRunner(self._mutation_dir, self._test_dir)
 
-    def apply_and_test_mutations(self) -> None:
+    def apply_and_test_mutations(self, mutation_results: List[MutationResult]) -> None:
         """
         Apply mutations to Java files and manage the mutation process.
 
@@ -30,7 +29,7 @@ class MutantTester:
 
         self._init_mutation_dir()
 
-        for mutation_result in self._mutation_results:
+        for mutation_result in mutation_results:
             for mutation in mutation_result.mutations:
                 try:
                     self._apply_single_mutation(mutation)
