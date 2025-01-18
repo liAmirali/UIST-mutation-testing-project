@@ -1,7 +1,7 @@
 import os
 import shutil
 from typing import List
-from util_classes import MutationResult, Mutation
+from src.util_classes import MutationResult, Mutation
 from src.test_runner import JUnitTestRunner
 
 class MutantTester:

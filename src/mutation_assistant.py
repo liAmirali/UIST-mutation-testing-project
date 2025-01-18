@@ -7,7 +7,7 @@ from typing import List, Dict, Tuple
 import json
 import logging
 
-from util_classes import Mutation, MutationLocation, MutationResult
+from src.util_classes import Mutation, MutationLocation, MutationResult
 from src.vars import GOOGLE_API_KEY
 
 class MutationAssistant:

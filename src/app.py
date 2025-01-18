@@ -3,6 +3,10 @@ from src.operator_selector import OperatorSelector
 from src.mutation_assistant import MutationAssistant
 from src.mutant_tester import MutantTester
 
+from src.util_classes import MutationResult
+
+from typing import List
+
 import os
 import shutil
 
@@ -10,7 +14,7 @@ DOCS_JSON_PATH = "./docs.json"
 PROJECTS_DIR = "./projects"
 
 class App:
-    def __init__(self, project_name: str, source_code_path: str, test_code_path: str):
+    def init(self, project_name: str, source_code_path: str, test_code_path: str):
         """
         Initialize the application with the given project name.
 
@@ -50,7 +54,9 @@ class App:
         Returns:
             bool: True if the project name exists, False otherwise.
         """
-        return project_name in self._config.projects
+        
+        # Check existing folder name in the PROJECTS_DIR
+        return os.path.exists(PROJECTS_DIR / project_name)
 
     def _prepare_project_dirs(self):
         """
@@ -75,7 +81,9 @@ class App:
         selections, _ = self.operator_selector.generate(user_prompt)
         self._selected_operators = selections
 
-    def generate_mutations(self):
+        return selections
+
+    def generate_mutations(self) -> List[MutationResult]: 
         """
         Generate mutations based on the selected operators.
         """
@@ -92,5 +100,11 @@ class App:
 
             mutation_result, _ = self.mutation_assistant.generate(source_code=source_code, mutation_operators=operator_names)
             mutation_results.append(mutation_result)
-
+        
+        return mutation_results
             
+    def get_file_relpath(self, file_path: str):
+        """
+        Get the relative path of the file.
+        """
+        return os.path.relpath(file_path, self.app._project_original_src_dir)

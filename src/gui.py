@@ -1,21 +1,22 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 import logging
-import os
+
+from src.app import App
 
 class MutationTesterGUI:
-    def __init__(self, root, operator_selector, mutation_assistant):
+    def __init__(self, root, app: App):
         self.root = root
         self.root.title("Mutation Testing Tool")
         self.root.geometry("1400x900")
         
-        # Store paths
+        # Store paths and project name
         self.source_folder = None
         self.test_folder = None
+        self.project_name = None
         
-        # Store instances
-        self.operator_selector = operator_selector
-        self.mutation_assistant = mutation_assistant
+        # Store app instance
+        self.app = None
         
         # Configure logging
         logging.basicConfig(level=logging.INFO)
@@ -30,13 +31,21 @@ class MutationTesterGUI:
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
         # Setup pages
-        self.setup_folder_selection_page()
+        self.setup_project_setup_page()
         self.setup_operator_selection_page()
         self.setup_mutations_page()
-        
-    def setup_folder_selection_page(self):
+
+    def setup_project_setup_page(self):
         page = ttk.Frame(self.notebook)
-        self.notebook.add(page, text="Step 1: Select Folders")
+        self.notebook.add(page, text="Step 1: Project Setup")
+        
+        # Project name input
+        project_frame = ttk.LabelFrame(page, text="Project Name", padding="10")
+        project_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        self.project_name_var = tk.StringVar()
+        project_entry = ttk.Entry(project_frame, textvariable=self.project_name_var)
+        project_entry.pack(fill=tk.X, expand=True)
         
         # Source folder selection
         source_frame = ttk.LabelFrame(page, text="Source Code Folder", padding="10")
@@ -56,8 +65,8 @@ class MutationTesterGUI:
         
         ttk.Button(test_frame, text="Browse", command=self.select_test_folder).pack(side=tk.RIGHT)
         
-        # Next button
-        ttk.Button(page, text="Next →", command=self.proceed_to_operator_selection).pack(side=tk.BOTTOM, pady=20)
+        # Initialize Project button
+        ttk.Button(page, text="Initialize Project →", command=self.initialize_project).pack(side=tk.BOTTOM, pady=20)
         
     def setup_operator_selection_page(self):
         page = ttk.Frame(self.notebook)
@@ -76,7 +85,6 @@ class MutationTesterGUI:
         operators_frame = ttk.LabelFrame(page, text="Recommended Operators", padding="10")
         operators_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        # Create operators treeview
         self.operators_tree = ttk.Treeview(operators_frame, columns=("Operator", "Reason"), show="headings")
         self.operators_tree.heading("Operator", text="Operator")
         self.operators_tree.heading("Reason", text="Reason")
@@ -152,7 +160,26 @@ class MutationTesterGUI:
         
         # Navigation
         ttk.Button(page, text="← Back", command=lambda: self.notebook.select(1)).pack(side=tk.BOTTOM, pady=20)
-        
+
+    def initialize_project(self):
+        project_name = self.project_name_var.get().strip()
+        if not project_name:
+            messagebox.showwarning("Warning", "Please enter a project name")
+            return
+            
+        if not self.source_folder or not self.test_folder:
+            messagebox.showwarning("Warning", "Please select both source and test folders")
+            return
+            
+        try:
+            self.app = App()
+            self.app.init(project_name, self.source_folder, self.test_folder)
+            self.notebook.select(1)
+        except ValueError as e:
+            messagebox.showerror("Error", str(e))
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to initialize project: {str(e)}")    
+    
     def select_source_folder(self):
         folder = filedialog.askdirectory(title="Select Source Code Folder")
         if folder:
@@ -172,62 +199,53 @@ class MutationTesterGUI:
         self.notebook.select(1)
         
     def find_operators(self):
+        if not self.app:
+            messagebox.showerror("Error", "Project not initialized")
+            return
+            
         goal = self.goal_text.get('1.0', tk.END).strip()
         if not goal:
             messagebox.showwarning("Warning", "Please describe what you want to test")
             return
             
         try:
-            operators, _ = self.operator_selector.generate(goal)
+            selected_operators = self.app.generate_operator_selection(goal)
             
             # Clear existing items
             for item in self.operators_tree.get_children():
                 self.operators_tree.delete(item)
                 
             # Add new operators
-            for op in operators:
+            for op in selected_operators:
                 self.operators_tree.insert("", tk.END, values=(op.operator_name, op.reason))
                 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to find operators: {str(e)}")
             
     def generate_mutations(self):
-        # Get selected operators
-        selected_operators = [
-            self.operators_tree.item(item)["values"][0]
-            for item in self.operators_tree.get_children()
-        ]
-        
-        if not selected_operators:
-            messagebox.showwarning("Warning", "No operators selected")
+        if not self.app:
+            messagebox.showerror("Error", "Project not initialized")
             return
             
         try:
+            mutation_results = self.app.generate_mutations()
+            
             # Clear existing items
             for item in self.files_tree.get_children():
                 self.files_tree.delete(item)
                 
-            # Process each Java file in the source folder
+            # Process mutation results
             self.mutations_by_file = {}
-            for root, _, files in os.walk(self.source_folder):
-                for file in files:
-                    if file.endswith('.java'):
-                        file_path = os.path.join(root, file)
-                        with open(file_path, 'r') as f:
-                            source_code = f.read()
-                            
-                        # Generate mutations for this file
-                        result, _ = self.mutation_assistant.generate(source_code, selected_operators)
-                        
-                        # Store mutations
-                        if result.total_mutations > 0:
-                            rel_path = os.path.relpath(file_path, self.source_folder)
-                            self.mutations_by_file[rel_path] = {
-                                'source': source_code,
-                                'mutations': result.mutations
-                            }
-                            # Add to tree
-                            self.files_tree.insert("", tk.END, text=rel_path, values=(rel_path,))
+            for mutation_result in mutation_results:
+                for mutation in mutation_result.mutations:
+                    if mutation.total_mutations > 0:
+                        file_path = self.app.get_file_relpath(mutation.path)
+                        self.mutations_by_file[file_path] = {
+                            'source': mutation.original_code,
+                            'mutations': mutation.mutations
+                        }
+                        # Add to tree
+                        self.files_tree.insert("", tk.END, text=file_path, values=(file_path,))
             
             self.notebook.select(2)
             
