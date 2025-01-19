@@ -283,7 +283,9 @@ class MutantTester:
         print("mutation status:", mutation_status)
 
         killed_total = status_counts[MutantStatus.KILLED]
-        mutation_score = (killed_total / total_mutants) if total_mutants > 0 else 0
+        stillborn_total = status_counts[MutantStatus.STILLBORN]
+        effective_mutants = total_mutants - stillborn_total
+        mutation_score = (killed_total / (effective_mutants)) * 100 if effective_mutants > 0 else 0
 
         return {
             "total_mutants": total_mutants,

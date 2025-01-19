@@ -145,9 +145,11 @@ class JavaInheritanceAnalyzer:
             parents = list(self.inheritance_graph.predecessors(node))
             file_path = self.class_file_map.get(node, "Unknown file")
             if parents:
-                text += f"{node} (in {file_path}) inherits from: {', '.join(parents)}\n"
+                text += f"{node} inherits from: {', '.join(parents)}\n"
             else:
-                text += f"{node} (in {file_path}) is a root class/interface\n"
+                text += f"{node} is a root class/interface\n"
+
+        return text
 
 
     def get_class_source_code(self, class_name: str) -> Optional[str]:
@@ -172,3 +174,11 @@ class JavaInheritanceAnalyzer:
         except IOError as e:
             print(f"Error reading file {file_path}: {e}")
             return None
+        
+
+def main():
+    analyzer = JavaInheritanceAnalyzer("./dev-junit-runner/src/main/java")
+    print(analyzer.get_inheritance_description())
+
+if __name__ == "__main__":
+    main()
