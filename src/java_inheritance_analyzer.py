@@ -131,7 +131,7 @@ class JavaInheritanceAnalyzer:
         except javalang.parser.JavaSyntaxError:
             return []
 
-    def print_inheritance_tree(self) -> None:
+    def get_inheritance_description(self) -> str:
         """
         Prints the inheritance tree in a user-friendly format.
         """
@@ -139,13 +139,16 @@ class JavaInheritanceAnalyzer:
             print("No inheritance tree to print.")
             return
         
+        text = "Inheritance tree:\n"
+        
         for node in self.inheritance_graph.nodes:
             parents = list(self.inheritance_graph.predecessors(node))
             file_path = self.class_file_map.get(node, "Unknown file")
             if parents:
-                print(f"{node} (in {file_path}) inherits from: {', '.join(parents)}")
+                text += f"{node} (in {file_path}) inherits from: {', '.join(parents)}\n"
             else:
-                print(f"{node} (in {file_path}) is a root class/interface")
+                text += f"{node} (in {file_path}) is a root class/interface\n"
+
 
     def get_class_source_code(self, class_name: str) -> Optional[str]:
         """

@@ -49,8 +49,6 @@ class JUnitTestRunner:
         self._logger.info(f"Compiling source files: {src_files}")
         self._logger.info(f"Compiling test files: {test_files}")
 
-        self._logger.debug(f"Classpath:", classpath)
-
         # Compile source files
         compile_cmd = [
             "javac",
@@ -106,13 +104,9 @@ class JUnitTestRunner:
             "TestRunner",  # Custom test runner class bytecode
             *test_classes
         ]
-
-        print("cmd:", cmd)
         
         # If the test runner runs with no errors, a file named "test_results.json" will be created
         result = subprocess.run(cmd, capture_output=True, text=True)
-
-        print("LS:", os.listdir())
 
         if result.returncode != 0:
             raise Exception(f"Test execution failed:\n{result.stderr}")
@@ -121,4 +115,3 @@ class JUnitTestRunner:
         shutil.move("test_results.json", self._test_results_dir / f"{test_result_filename}.json")
 
         self._logger.debug(f"Test results file created: {self._test_results_dir / f'{test_result_filename}.json'}")
-        print(f"Moved to {self._test_results_dir / f'{test_result_filename}.json'}")

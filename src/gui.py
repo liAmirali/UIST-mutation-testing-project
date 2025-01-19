@@ -187,92 +187,131 @@ class MutationTesterGUI:
                   command=self.run_mutation_tests).pack(side=tk.LEFT, padx=5)
 
     def setup_results_page(self):
-        """Setup the mutation testing results page"""
+        """Setup the mutation testing results page with detailed mutation results"""
         page = ttk.Frame(self.notebook)
         self.notebook.add(page, text="Step 4: Test Results")
 
-        # Summary section
-        summary_frame = ttk.LabelFrame(page, text="Mutation Testing Summary", padding="10")
-        summary_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Create main container
+        main_paned = ttk.PanedWindow(page, orient=tk.VERTICAL)
+        main_paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-        # Create a frame for statistics with grid layout
+        # Top section - Summary
+        summary_frame = ttk.LabelFrame(main_paned, text="Mutation Testing Summary", padding="10")
+        main_paned.add(summary_frame, weight=1)
+
+        # Statistics grid
         stats_frame = ttk.Frame(summary_frame)
         stats_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        # Statistics labels
+        # Create statistics grid with 2 columns
         self.stats_labels = {}
         stats = [
             ("total_mutants", "Total Mutants:"),
             ("killed_mutants", "Killed Mutants:"),
-            ("survived_mutants", "Survived Mutants:"),
+            ("survived_mutants", "Live Mutants:"),
+            ("stillborn_mutants", "Stillborn Mutants:"),
+            ("trivial_mutants", "Trivial Mutants:"),
             ("mutation_score", "Mutation Score:")
         ]
 
         for i, (key, text) in enumerate(stats):
-            ttk.Label(stats_frame, text=text).grid(row=i//2, column=i%2*2, pady=5, padx=5, sticky='e')
+            row = i // 2
+            col = (i % 2) * 2
+            ttk.Label(stats_frame, text=text).grid(row=row, column=col, pady=5, padx=5, sticky='e')
             self.stats_labels[key] = ttk.Label(stats_frame, text="--")
-            self.stats_labels[key].grid(row=i//2, column=i%2*2+1, pady=5, padx=5, sticky='w')
+            self.stats_labels[key].grid(row=row, column=col + 1, pady=5, padx=5, sticky='w')
 
-        # Test Results section
-        results_frame = ttk.Frame(page)
-        results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # Bottom section - Notebook for different views
+        results_notebook = ttk.Notebook(main_paned)
+        main_paned.add(results_notebook, weight=3)
 
-        # Split view for test classes and their details
-        paned = ttk.PanedWindow(results_frame, orient=tk.HORIZONTAL)
-        paned.pack(fill=tk.BOTH, expand=True)
+        # Mutations tab
+        mutations_frame = ttk.Frame(results_notebook)
+        results_notebook.add(mutations_frame, text="Mutations")
 
-        # Left pane - Test classes list
-        left_frame = ttk.Frame(paned)
-        paned.add(left_frame, weight=1)
-
-        ttk.Label(left_frame, text="Test Classes").pack(fill=tk.X, pady=5)
+        # Create mutations tree
+        self.mutations_result_tree = ttk.Treeview(
+            mutations_frame,
+            columns=("id", "status", "compiled", "error"),
+            show="headings"
+        )
+        self.mutations_result_tree.heading("id", text="Mutation ID")
+        self.mutations_result_tree.heading("status", text="Status")
+        self.mutations_result_tree.heading("compiled", text="Compiled")
+        self.mutations_result_tree.heading("error", text="Error")
+        self.mutations_result_tree.column("id", width=100)
+        self.mutations_result_tree.column("status", width=100)
+        self.mutations_result_tree.column("compiled", width=100)
+        self.mutations_result_tree.column("error", width=400)
         
-        self.test_classes_tree = ttk.Treeview(left_frame, columns=("passed", "failed", "total"), show="headings", height=10)
+        scrollbar = ttk.Scrollbar(mutations_frame, orient=tk.VERTICAL, command=self.mutations_result_tree.yview)
+        self.mutations_result_tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.mutations_result_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Test Impact tab
+        impact_frame = ttk.Frame(results_notebook)
+        results_notebook.add(impact_frame, text="Test Impact")
+
+        self.impact_tree = ttk.Treeview(
+            impact_frame,
+            columns=("test", "mutants_killed"),
+            show="headings"
+        )
+        self.impact_tree.heading("test", text="Test Name")
+        self.impact_tree.heading("mutants_killed", text="Mutants Killed")
+        self.impact_tree.column("test", width=500)
+        self.impact_tree.column("mutants_killed", width=150, anchor="center")
+        
+        impact_scrollbar = ttk.Scrollbar(impact_frame, orient=tk.VERTICAL, command=self.impact_tree.yview)
+        self.impact_tree.configure(yscrollcommand=impact_scrollbar.set)
+        
+        self.impact_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        impact_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Test Details tab
+        test_details_frame = ttk.Frame(results_notebook)
+        results_notebook.add(test_details_frame, text="Test Details")
+
+        # Test class selection at the top
+        self.test_classes_tree = ttk.Treeview(
+            test_details_frame,
+            columns=("passed", "failed", "total"),
+            show="headings",
+            height=6
+        )
         self.test_classes_tree.heading("passed", text="Passed")
         self.test_classes_tree.heading("failed", text="Failed")
         self.test_classes_tree.heading("total", text="Total")
-        self.test_classes_tree.column("passed", width=70, anchor="center")
-        self.test_classes_tree.column("failed", width=70, anchor="center")
-        self.test_classes_tree.column("total", width=70, anchor="center")
-        self.test_classes_tree.pack(fill=tk.BOTH, expand=True)
+        self.test_classes_tree.column("passed", width=100, anchor="center")
+        self.test_classes_tree.column("failed", width=100, anchor="center")
+        self.test_classes_tree.column("total", width=100, anchor="center")
+        self.test_classes_tree.pack(fill=tk.X, padx=5, pady=5)
         self.test_classes_tree.bind('<<TreeviewSelect>>', self.on_test_class_select)
 
-        # Right pane - Test details
-        right_frame = ttk.Frame(paned)
-        paned.add(right_frame, weight=2)
-
-        # Test impact section
-        impact_frame = ttk.LabelFrame(right_frame, text="Test Impact Analysis", padding="5")
-        impact_frame.pack(fill=tk.X, padx=5, pady=5)
-
-        self.impact_tree = ttk.Treeview(impact_frame, 
-                                      columns=("test", "mutants_killed"),
-                                      show="headings",
-                                      height=6)
-        self.impact_tree.heading("test", text="Test Name")
-        self.impact_tree.heading("mutants_killed", text="Mutants Killed")
-        self.impact_tree.column("test", width=300)
-        self.impact_tree.column("mutants_killed", width=100, anchor="center")
-        self.impact_tree.pack(fill=tk.X)
-
-        # Individual test results
-        test_results_frame = ttk.LabelFrame(right_frame, text="Test Results", padding="5")
-        test_results_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        self.test_results_tree = ttk.Treeview(test_results_frame,
-                                            columns=("name", "status", "error"),
-                                            show="headings")
+        # Test results tree below
+        self.test_results_tree = ttk.Treeview(
+            test_details_frame,
+            columns=("name", "status", "error"),
+            show="headings"
+        )
         self.test_results_tree.heading("name", text="Test Name")
         self.test_results_tree.heading("status", text="Status")
         self.test_results_tree.heading("error", text="Error Message")
-        self.test_results_tree.column("name", width=200)
-        self.test_results_tree.column("status", width=100, anchor="center")
-        self.test_results_tree.column("error", width=300)
-        self.test_results_tree.pack(fill=tk.BOTH, expand=True)
+        self.test_results_tree.column("name", width=300)
+        self.test_results_tree.column("status", width=100)
+        self.test_results_tree.column("error", width=400)
+        
+        test_results_scrollbar = ttk.Scrollbar(test_details_frame, orient=tk.VERTICAL, command=self.test_results_tree.yview)
+        self.test_results_tree.configure(yscrollcommand=test_results_scrollbar.set)
+        
+        self.test_results_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=5)
+        test_results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Navigation
-        ttk.Button(page, text="← Back to Mutations", 
-                  command=lambda: self.notebook.select(2)).pack(side=tk.BOTTOM, pady=20)
+        # Navigation buttons
+        ttk.Button(page, text="← Back to Mutations",
+                command=lambda: self.notebook.select(2)).pack(side=tk.BOTTOM, pady=20)
 
     def initialize_project(self):
         project_name = self.project_name_var.get().strip()
@@ -488,15 +527,32 @@ class MutationTesterGUI:
             test_results, summary = self.app.get_test_results()
             
             # Update summary statistics
+            status_counts = summary["mutant_status_counts"]
             self.stats_labels["total_mutants"].config(text=str(summary["total_mutants"]))
-            self.stats_labels["killed_mutants"].config(text=str(summary["killed_mutants"]))
-            self.stats_labels["survived_mutants"].config(text=str(summary["survived_mutants"]))
+            self.stats_labels["killed_mutants"].config(text=str(status_counts["killed"]))
+            self.stats_labels["survived_mutants"].config(text=str(status_counts["live"]))
+            self.stats_labels["stillborn_mutants"].config(text=str(status_counts["stillborn"]))
+            self.stats_labels["trivial_mutants"].config(text=str(status_counts["trivial"]))
             self.stats_labels["mutation_score"].config(text=f"{summary['mutation_score']:.2f}%")
 
             # Clear existing items
-            self.test_classes_tree.delete(*self.test_classes_tree.get_children())
+            self.mutations_result_tree.delete(*self.mutations_result_tree.get_children())
             self.impact_tree.delete(*self.impact_tree.get_children())
+            self.test_classes_tree.delete(*self.test_classes_tree.get_children())
             self.test_results_tree.delete(*self.test_results_tree.get_children())
+
+            # Update mutations results
+            for mutant_id, status in summary["mutation_status"].items():
+                test_suite = test_results.get(mutant_id)
+                if test_suite:
+                    compiled = "✓" if test_suite.compiled else "✗"
+                    error = test_suite.compile_error if not test_suite.compiled else ""
+                    self.mutations_result_tree.insert("", tk.END, values=(
+                        mutant_id,
+                        status.title(),
+                        compiled,
+                        error
+                    ))
 
             # Update test impact analysis
             for test_name, mutants_killed in summary["test_impact"].items():
@@ -506,14 +562,14 @@ class MutationTesterGUI:
             for mutant_id, suite_result in test_results.items():
                 for test_class in suite_result.test_classes:
                     self.test_classes_tree.insert("", tk.END,
-                                                iid=test_class.test_class_name,
+                                                iid=f"{mutant_id}-{test_class.test_class_name}",
                                                 values=(test_class.passed_tests,
-                                                       test_class.failed_tests,
-                                                       test_class.total_tests))
+                                                    test_class.failed_tests,
+                                                    test_class.total_tests))
 
             # Sort impact tree by mutants killed (descending)
             impact_items = [(item, int(self.impact_tree.set(item, "mutants_killed")))
-                          for item in self.impact_tree.get_children("")]
+                        for item in self.impact_tree.get_children("")]
             impact_items.sort(key=lambda x: x[1], reverse=True)
             
             for index, (item, _) in enumerate(impact_items):

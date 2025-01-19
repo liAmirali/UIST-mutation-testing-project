@@ -37,7 +37,7 @@ class TestResult:
     test_name: str
     test_unique_id: str
     is_passed: bool
-    error_message: str
+    error_message: Optional[str] = None
 
 @dataclass
 class TestClassResult:

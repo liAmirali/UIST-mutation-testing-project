@@ -120,7 +120,9 @@ class App:
 
         java_inheritance_analyzer = JavaInheritanceAnalyzer(self._project_original_src_dir)
 
-        java_inheritance_analyzer.print_inheritance_tree()
+        inheritance_desc = java_inheritance_analyzer.get_inheritance_description()
+
+        self._logger.debug(f"{inheritance_desc}")
 
         for source_file in Path(self._project_original_src_dir).glob("**/*.java"):
             with open(source_file, 'r') as file:
@@ -150,12 +152,14 @@ class App:
                     child_source_code = java_inheritance_analyzer.get_class_source_code(child)
                     helper_source_code += f"{child_source_code}\n"
 
-            print(helper_source_code)
+            self._logger.debug(f"Source code class: {source_class_names}")
+            self._logger.debug(f"Helper source code: {helper_source_code}")
 
             try:
                 mutation_result, _ = self.mutation_assistant.generate(
                     source_code=source_code,
                     helper_source=helper_source_code,
+                    inheritance_desc=inheritance_desc,
                     mutation_operators=operator_names,
                     mutant_filepath=str(source_file.relative_to(self._project_original_src_dir))
                 )
@@ -171,6 +175,7 @@ class App:
         Run the mutant tester on the generated mutations.
         """
 
+        self.mutant_tester.test_original_code()
         self.mutant_tester.apply_and_test_mutations(mutation_results)
 
     def get_test_results(self) -> Tuple[Dict[str, TestSuiteResult], Dict]:
