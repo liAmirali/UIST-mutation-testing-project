@@ -60,9 +60,10 @@ Your responsibilities are:
 *   **Strictly adhere to the preconditions for each operator:** If preconditions are not met in the code, do not attempt to apply that mutation.
 *   **Maintain code structure:**  Do not drastically change the structure of the code. Mutations should be localized as much as possible.
 *   **The goal is to test the impact of small changes.** The mutations should be minimal to help isolate potential issues.
-*   **Always output in JSON format. For long values DO NOT use plus sign to concatenate the string.**
-*   **Ensure mutations are syntactically correct and compilable.** Provide the full mutant code and avoid partial code outputs. The code must be runnable."""
-
+*   **Always output in JSON format. For long values of `mutated_code` DO NOT USE string concatination with plus operators. Put all the code inside 2 double-quotations and escape other special characters appropriately.**
+*   **Ensure mutations are syntactically correct and compilable.** Provide the full mutant code and avoid partial code outputs. The code must be runnable.
+*   **Make sure that full mutated source code (<full_mutated_source_code>) is something different with source code <src>, if it is not delete that mutation.**
+"""
         self._vector_store = vector_store
 
         # Create the QA prompt template
@@ -112,7 +113,7 @@ Your responsibilities are:
     def _create_qa_chain(self):
         return create_stuff_documents_chain(llm=self.llm, prompt=self.prompt)
 
-    def _parse_response(self, response_text: str) -> MutationResult:
+    def _parse_response(self, response_text: str, mutant_filepath: str) -> MutationResult:
         """Parse the LLM response into a MutationResult object"""
         try:
             # Checking if the response text is between ```json and ``` and extracting with regex
@@ -132,8 +133,11 @@ Your responsibilities are:
                     start_column=mut['location'].get('start_column'),
                     end_column=mut['location'].get('end_column')
                 )
+
+                file_stem = os.path.splitext(os.path.basename(mutant_filepath))[0]
+
                 mutation = Mutation(
-                    id=mut['id'],
+                    id=file_stem + "_" + mut['id'],
                     operator=mut['operator'],
                     mutated_code=mut['mutated_code'],
                     location=location,
@@ -143,14 +147,14 @@ Your responsibilities are:
 
             return MutationResult(
                 total_mutations=result_dict['total_mutations'],
-                mutations=mutations,
+                rel_path=mutant_filepath,
+                mutations=mutations
             )
 
         except Exception as e:
             self._logger.error(f"Error parsing LLM response: {str(e)}")
             raise ValueError(f"Failed to parse LLM response: {str(e)}")
-
-    def generate(self, source_code: str, helper_source: str, mutation_operators: List[str]) -> Dict:
+    def generate(self, source_code: str, helper_source: str, mutation_operators: List[str], mutant_filepath: str) -> Tuple[MutationResult, list]:
         """Answer a question using the RAG system."""
         context = self._get_relevant_documents(mutation_operators)
 
@@ -168,4 +172,4 @@ Your responsibilities are:
 
         self._logger.info(f"LLM response: {response}")
 
-        return self._parse_response(response), context
+        return self._parse_response(response, mutant_filepath), context

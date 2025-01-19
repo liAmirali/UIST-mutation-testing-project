@@ -15,7 +15,7 @@ if __name__ == "__main__":
     logging.getLogger(__name__).setLevel(logging.DEBUG)
 
     app.init(
-        project_name="amirali3",
+        project_name="amirali4",
         source_code_path="dev-junit-runner/src/main/java",
         test_code_path="dev-junit-runner/src/test/java",
     )

@@ -2,10 +2,12 @@ from src.vector_store import VectorStore
 from src.operator_selector import OperatorSelector
 from src.mutation_assistant import MutationAssistant
 from src.mutant_tester import MutantTester
+from src.java_inheritance_analyzer import JavaInheritanceAnalyzer
 
 from src.util_classes import MutationResult, TestSuiteResult
 
 from typing import List, Tuple, Dict
+import logging
 
 from pathlib import Path
 import os
@@ -51,6 +53,9 @@ class App:
             mutation_dir=self._project_mutations_dir,
             test_results_dir=self._project_test_results_dir
         )
+
+        # Initialize logging
+        self._logger = logging.getLogger(__name__)
 
     def _check_project_name_exists(self, project_name: str) -> bool:
         """
@@ -113,20 +118,50 @@ class App:
 
         mutation_results = []
 
+        java_inheritance_analyzer = JavaInheritanceAnalyzer(self._project_original_src_dir)
+
+        java_inheritance_analyzer.print_inheritance_tree()
+
         for source_file in Path(self._project_original_src_dir).glob("**/*.java"):
             with open(source_file, 'r') as file:
                 source_code = file.read()
 
-            # TODO: Retrieve other helping source codes
+            source_class_names = java_inheritance_analyzer.extract_class_names_from_source(source_code)
+
+            helper_source_code = ""
+
+            for class_name in source_class_names:
+                relations = java_inheritance_analyzer.get_class_relations(class_name)
+
+                if relations is None:
+                    continue
+
+                parent, siblings, children = relations["parent"], relations["siblings"], relations["children"]  
+
+                if parent:
+                    parent_source_code = java_inheritance_analyzer.get_class_source_code(parent)
+                    helper_source_code += f"{parent_source_code}\n"
+                
+                for sibling in siblings:
+                    sibling_source_code = java_inheritance_analyzer.get_class_source_code(sibling)
+                    helper_source_code += f"{sibling_source_code}\n"
+
+                for child in children:
+                    child_source_code = java_inheritance_analyzer.get_class_source_code(child)
+                    helper_source_code += f"{child_source_code}\n"
+
+            print(helper_source_code)
 
             try:
                 mutation_result, _ = self.mutation_assistant.generate(
                     source_code=source_code,
+                    helper_source=helper_source_code,
                     mutation_operators=operator_names,
                     mutant_filepath=str(source_file.relative_to(self._project_original_src_dir))
                 )
                 mutation_results.append(mutation_result)
-            except:
+            except Exception as e:
+                self._logger.error(f"Error generating mutations for file: {source_file}: {str(e)}")
                 continue
         
         return mutation_results
